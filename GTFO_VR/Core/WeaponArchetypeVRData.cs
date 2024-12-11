@@ -122,6 +122,11 @@ namespace GTFO_VR.Core
                 { "DREKKER DEL P1", new VRWeaponData(new Vector3(0f, 0f, 0f), true) },
                 { "OMNECO LRG", new VRWeaponData(new Vector3(0f, 0f, 0f), true) },
                 { "BATALDO CUSTOM K330", new VRWeaponData(new Vector3(0f, 0f, 0f), true) },
+
+                 // Modded ( Fatal Experiment 2 etc )
+                { "MASTABA ASCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "MASTABA TRANSCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "MACHINE STICK", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
             };
 
             m_current = weaponDataByPublicName["Default"];

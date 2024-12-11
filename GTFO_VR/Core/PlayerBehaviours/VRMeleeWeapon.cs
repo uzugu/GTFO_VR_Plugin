@@ -33,7 +33,8 @@ namespace GTFO_VR.Core.PlayerBehaviours
         private Vector3 m_offsetTip = new Vector3(0, 0, .6f);
         private Vector3 m_offsetBase = new Vector3(0, 0, .3f);
         private bool m_elongatedHitbox = false; // If hitbox is elongated ( knife, bat, hammer ) or a single sphere ( spear )
-        private bool m_centerHitbox = false;    // If a center hitbox should be generated when using an elongated hitbox
+        private int m_extraHitboxCount = 0;     // How many hitboxes to generated between base and tip ( elonagted only )
+        private bool m_velocityRequired = true; // Must be swinging to detect hit
 
 #if DEBUG_GTFO_VR
         private static readonly float DEBUG_HIT_DRAW_DURATION = 5;
@@ -60,29 +61,62 @@ namespace GTFO_VR.Core.PlayerBehaviours
                     m_offsetTip = new Vector3(0, 0.95f, 0f);
                     m_offsetBase = m_offsetTip;
                     m_elongatedHitbox = false;
-                    m_centerHitbox = false;
+                    m_extraHitboxCount = 0;
+                    m_velocityRequired = true;
                     break;
                 case "Knife":
                     m_hitboxSize = 0.025f;
                     m_offsetTip = new Vector3(0, 0.28f, 0.01f);
                     m_offsetBase = new Vector3(0, 0.12f, 0.01f);
                     m_elongatedHitbox = true;
-                    m_centerHitbox = true;
+                    m_extraHitboxCount = 1;
+                    m_velocityRequired = true;
                     break;
                 case "Bat":
                     m_hitboxSize = 0.04f;
                     m_offsetTip = new Vector3(0, 0.4f, 0f);
                     m_offsetBase = new Vector3(0, 0.15f, 0.0f);
                     m_elongatedHitbox = true;
-                    m_centerHitbox = true;
+                    m_extraHitboxCount = 1;
+                    m_velocityRequired = true;
                     break;
                 case "Sledgehammer":
                     m_hitboxSize = .07f;
                     m_offsetTip = new Vector3(0, 0.42f, 0.1f);  // Front-facing hammer head
                     m_offsetBase = new Vector3(0, 0.42f, -0.1f);
                     m_elongatedHitbox = true;
-                    m_centerHitbox = false;
+                    m_extraHitboxCount = 0;
+                    m_velocityRequired = true;
                     break;
+
+                // Project hwarever mod weapons
+                case "Stick":
+                    m_hitboxSize = .03f;
+                    m_offsetTip = new Vector3(0, 0.42f, 0f);
+                    m_offsetBase = new Vector3(0, 0.02f, 0.0f);
+                    m_elongatedHitbox = true;
+                    m_extraHitboxCount = 4;
+                    m_velocityRequired = false;
+                    break;
+
+                case "Sword":
+                    m_hitboxSize = 0.06f;
+                    m_offsetTip = new Vector3(0, 1.0f, -0.02f);
+                    m_offsetBase = new Vector3(0, 0.18f, -0.02f);
+                    m_elongatedHitbox = true;
+                    m_extraHitboxCount = 4;
+                    m_velocityRequired = true;
+                    break;
+
+                case "Giga Sword":
+                    m_hitboxSize = 0.14f;
+                    m_offsetTip = new Vector3(0, 0.37f, 0f);
+                    m_offsetBase = new Vector3(0, 1.67f, 0.0f);
+                    m_elongatedHitbox = true;
+                    m_extraHitboxCount = 4;
+                    m_velocityRequired = true;
+                    break;
+
                 default:
                     Log.Error($"Unknown melee weapon detected {weapon.name}");
                     return;
@@ -147,11 +181,32 @@ namespace GTFO_VR.Core.PlayerBehaviours
                 GTFODebugDraw3D.DrawSphere(m_damageRefTipPositionTracker.GetLatestPosition(), m_hitboxSize, ColorExt.Red(0.2f));
                 if (m_elongatedHitbox)
                 {
+
                     GTFODebugDraw3D.DrawSphere(m_damageRefBasePositionTracker.GetLatestPosition(), m_hitboxSize, ColorExt.Red(0.2f));
-                    if (m_centerHitbox)
+                    if (m_extraHitboxCount > 0)
                     {
-                        Vector3 centerHitbox = (m_damageRefTipPositionTracker.GetLatestPosition() + m_damageRefBasePositionTracker.GetLatestPosition()) * 0.5f;
-                        GTFODebugDraw3D.DrawSphere(centerHitbox, m_hitboxSize, ColorExt.Red(0.2f));
+                        Vector3 baseCurrent = m_damageRefBasePositionTracker.GetLatestPosition();
+                        Vector3 weaponTipPosCurrent = m_damageRefTipPositionTracker.GetLatestPosition();
+
+                        // Get how far each collider should be from the last
+                        float hitboxDistance = (baseCurrent - weaponTipPosCurrent).magnitude;
+                        hitboxDistance = hitboxDistance / (float)(m_extraHitboxCount + 1.0f);
+
+                        // Base for current and prev, which we will add to for each iteration.
+                        Vector3 currentHitboxStart = baseCurrent;
+
+                        // Vector from base to tip for both current and prev
+                        Vector3 current_scaledBaseToTip = weaponTipPosCurrent - baseCurrent;
+
+                        // scaled to distance between each collider
+                        current_scaledBaseToTip = current_scaledBaseToTip.normalized * hitboxDistance;
+
+                        for (int i = 0; i < m_extraHitboxCount; i++)
+                        {
+                            currentHitboxStart += current_scaledBaseToTip;
+                            GTFODebugDraw3D.DrawSphere(currentHitboxStart, m_hitboxSize, ColorExt.Red(0.2f));
+                        }
+
                     }
                 }
             }
@@ -193,7 +248,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private bool VelocityAboveThreshold( float positionalThreshold, float angularThreshold )
         {
-            return m_handPositionTracker.GetSmoothVelocity() > positionalThreshold || m_handPositionTracker.GetSmoothAngularVelocity() > angularThreshold;
+            return !m_velocityRequired || m_handPositionTracker.GetSmoothVelocity() > positionalThreshold || m_handPositionTracker.GetSmoothAngularVelocity() > angularThreshold;
         }
 
         public bool VelocityAboveThreshold()
@@ -298,10 +353,32 @@ namespace GTFO_VR.Core.PlayerBehaviours
                 // Add base position
                 hitboxes.Add(new MeleeAttackData(baseCurrent, basePrev));
 
-                // And one inbetween tip and base, maybe
-                if (m_centerHitbox)
+                if (m_extraHitboxCount > 0)
                 {
-                    hitboxes.Add(new MeleeAttackData((baseCurrent + weaponTipPosCurrent) * 0.5f, (weaponTipPosPrev + basePrev) * 0.5f));
+                    // Get how far each collider should be from the last
+                    float hitboxDistance = (baseCurrent - weaponTipPosCurrent).magnitude;
+                    hitboxDistance = hitboxDistance / (float)(m_extraHitboxCount + 1.0f);
+
+                    // Base for current and prev, which we will add to for each iteration.
+                    Vector3 currentHitboxStart = baseCurrent;
+                    Vector3 prevHitboxStart = basePrev;
+
+                    // Vector from base to tip for both current and prev
+                    Vector3 prev_scaledBaseToTip = weaponTipPosPrev - basePrev;
+                    Vector3 current_scaledBaseToTip = weaponTipPosCurrent - baseCurrent;
+
+                    // scaled to distance between each collider
+                    current_scaledBaseToTip = current_scaledBaseToTip.normalized * hitboxDistance;
+                    prev_scaledBaseToTip = prev_scaledBaseToTip.normalized * hitboxDistance;
+  
+                    for (int i = 0; i < m_extraHitboxCount; i++)
+                    {
+                        currentHitboxStart += current_scaledBaseToTip;
+                        prevHitboxStart += prev_scaledBaseToTip;
+
+                        hitboxes.Add(new MeleeAttackData(currentHitboxStart, prevHitboxStart));
+                    }
+
                 }
             }
 
