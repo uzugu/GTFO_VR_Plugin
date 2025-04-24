@@ -127,6 +127,16 @@ namespace GTFO_VR.Core
                 { "MASTABA ASCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
                 { "MASTABA TRANSCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
                 { "MACHINE STICK", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+
+                // Thermonuclear, hammers
+                { "GEARMAK B44 ICEBREAKER", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "GEARMAK B43 ARTESIAN", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+
+                // Knives
+                { "GEARMAK GL2 ROYAL", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "CULTIST ZA4-CONDEMN", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+
+
             };
 
             m_current = weaponDataByPublicName["Default"];
