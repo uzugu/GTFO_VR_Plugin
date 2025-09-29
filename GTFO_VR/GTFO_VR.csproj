@@ -408,7 +408,7 @@
   </ItemGroup>
   
   <Target Name="PostBuild" BeforeTargets="PostBuildEvent">
-    <Exec Command="xcopy &quot;$(TargetPath)&quot; &quot;$(GTFO_PATH)\BepInEx\plugins&quot; /E /Y" />
+    <Exec Condition="'$(DisablePostBuildCopy)' != 'true' and '$(GTFO_PATH)' != ''" Command="xcopy &quot;$(TargetPath)&quot; &quot;$(GTFO_PATH)\BepInEx\plugins&quot; /E /Y" />
   </Target>
 
 

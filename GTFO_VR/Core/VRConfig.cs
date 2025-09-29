@@ -24,6 +24,7 @@ namespace GTFO_VR.Core
         internal static ConfigEntry<bool> configUseWeaponHaptics;
         internal static ConfigEntry<bool> configUseBhaptics;
         internal static ConfigEntry<bool> configUseShockwave;
+        internal static ConfigEntry<bool> configUsePSVR2Haptics;
         internal static ConfigEntry<string> configLaserPointerColor;
         internal static ConfigEntry<float> configShootingHapticsStrength;
         internal static ConfigEntry<int> configWeaponRotationOffset;
@@ -83,6 +84,9 @@ namespace GTFO_VR.Core
             configProtube = BindBool(file, "Input", "Enable ProTubeVR support?", true, "If true, will enable ProTubeVR events", "ProtubeVR Support");
             configUseBhaptics = BindBool(file, "Bhaptics", "Enable bhaptics", true, "If true, bhaptics integration will be enabled", "Bhaptics Support");
             configUseShockwave = BindBool(file, "Shockwave", "Enable Shockwave (beta)", false, "If true, Shockwave suit integration will be enabled", "Shockwave Support");
+
+            BindHeader("PSVR2 Toolkit");
+            configUsePSVR2Haptics = BindBool(file, "PSVR2 Toolkit", "Enable PSVR2 haptics?", false, "If true, PSVR2 Toolkit haptics integration will mirror weapon fire events.", "PSVR2 Toolkit haptics");
 
             configPosePredictionTranslation = BindBool(file, "Input", "Pose Prediction Translation", true, "If true, motion prediction will be used to make controller position more responsive", "Pose Prediction Translation");
             configPosePredictionRotation = BindBool(file, "Input", "Pose Prediction Rotation", false, "If true, motion prediction will be used to make controller rotation more responsive", "Pose Prediction Rotation");

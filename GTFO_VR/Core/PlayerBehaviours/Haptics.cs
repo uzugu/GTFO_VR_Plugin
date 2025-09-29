@@ -1,6 +1,8 @@
 ﻿using GTFO_VR.Core.VR_Input;
 using GTFO_VR.Events;
+using GTFO_VR.Core.PSVR2;
 using GTFO_VR.Util;
+using Player;
 using System;
 using UnityEngine;
 
@@ -17,12 +19,14 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         public void Setup()
         {
+            PSVR2HapticsManager.Initialize();
             PlayerReceivedDamageEvents.OnPlayerTakeDamage += PlayReceiveDamageHaptics;
             PlayerFireWeaponEvents.OnPlayerFireWeapon += PlayWeaponFireHaptics;
             PlayerReloadEvents.OnPlayerReloaded += PlayWeaponReloadHaptics;
             GlueGunEvents.OnPressureUpdate += GlueGunPressureHaptics;
             HeldItemEvents.OnItemCharging += HammerChargingHaptics;
             VRMeleeWeaponEvents.OnHammerSmack += HammerSmackHaptics;
+            ItemEquippableEvents.OnPlayerWieldItem += OnPlayerWieldItemPSVR2;
         }
 
         public static float GetFireHapticStrength(Weapon weapon, float intensityFactor = 1f)
@@ -34,6 +38,13 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void HammerSmackHaptics(float dmg)
         {
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                bool hitEnemy = dmg > 0.01f;
+                PSVR2HapticsManager.TriggerMeleeImpact(dmg, hitEnemy);
+                return;
+            }
+
             if (!VRConfig.configUseWeaponHaptics.Value)
             {
                 return;
@@ -90,7 +101,6 @@ namespace GTFO_VR.Core.PlayerBehaviours
                 return;
             }
 
-
             if (pressure > 0.05f && Time.time > lastVibrateTime)
             {
                 float intensity = pressure;
@@ -119,6 +129,16 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void PlayWeaponReloadHaptics()
         {
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.TriggerReload(Controllers.AimingTwoHanded);
+            }
+
+            if (!VRConfig.configUseWeaponHaptics.Value || VRConfig.configUsePSVR2Haptics.Value)
+            {
+                return;
+            }
+
             float duration = 0.03f;
             float frequency = 40f;
             float intensity = .5f;
@@ -132,12 +152,17 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void PlayWeaponFireHaptics(Weapon weapon)
         {
-            if (!VRConfig.configUseWeaponHaptics.Value)
+            float intensity = GetFireHapticStrength(weapon, VRConfig.configShootingHapticsStrength.Value);
+
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.TriggerWeaponFire(intensity, Controllers.AimingTwoHanded);
+            }
+
+            if (!VRConfig.configUseWeaponHaptics.Value || VRConfig.configUsePSVR2Haptics.Value)
             {
                 return;
             }
-            
-            float intensity = GetFireHapticStrength(weapon, VRConfig.configShootingHapticsStrength.Value);
 
             float duration = 0.03f;
             float frequency = 40f;
@@ -161,6 +186,12 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void PlayReceiveDamageHaptics(float dmg, Vector3 direction)
         {
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.TriggerDamageFeedback();
+                return;
+            }
+
             if (dmg > .5)
             {
                 dmg = dmg.RemapClamped(0, 10f, 0, .75f);
@@ -180,6 +211,23 @@ namespace GTFO_VR.Core.PlayerBehaviours
             }
         }
 
+        private void OnPlayerWieldItemPSVR2(ItemEquippable item)
+        {
+            if (!VRConfig.configUsePSVR2Haptics.Value)
+            {
+                return;
+            }
+
+            if (ItemEquippableEvents.IsItemShootableWeapon(item) || PSVR2HapticsManager.HasCustomProfile(item?.PublicName))
+            {
+                PSVR2HapticsManager.ApplyWeaponProfile(item);
+            }
+            else
+            {
+                PSVR2HapticsManager.DisableTriggers();
+            }
+        }
+
         private void OnDestroy()
         {
             PlayerReceivedDamageEvents.OnPlayerTakeDamage -= PlayReceiveDamageHaptics;
@@ -188,6 +236,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
             GlueGunEvents.OnPressureUpdate -= GlueGunPressureHaptics;
             HeldItemEvents.OnItemCharging -= HammerChargingHaptics;
             VRMeleeWeaponEvents.OnHammerSmack -= HammerSmackHaptics;
+            ItemEquippableEvents.OnPlayerWieldItem -= OnPlayerWieldItemPSVR2;
+
+            PSVR2HapticsManager.Shutdown();
         }
     }
 }
