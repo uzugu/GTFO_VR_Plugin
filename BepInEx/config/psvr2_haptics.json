@@ -3,7 +3,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 2, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -21,7 +21,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 5, 
         "startPosition": 2, 
-        "fireFrequency": 90, 
+        "fireFrequency": 21, 
         "fireAmplitude": 5, 
         "slopeStartStrength": 4, 
         "triggerStrength": 5
@@ -85,7 +85,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 12, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -94,7 +94,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 175, 
+        "fireFrequency": 14, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 6, 
         "triggerStrength": 8
@@ -103,7 +103,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 7, 
         "startPosition": 2, 
-        "fireFrequency": 148, 
+        "fireFrequency": 8, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 5, 
         "triggerStrength": 7
@@ -166,7 +166,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 1, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -175,7 +175,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 7, 
         "startPosition": 2, 
-        "fireFrequency": 120, 
+        "fireFrequency": 3, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 5, 
         "triggerStrength": 7
@@ -184,7 +184,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 9, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -193,7 +193,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 5, 
         "startPosition": 2, 
-        "fireFrequency": 10, 
+        "fireFrequency": 7, 
         "fireAmplitude": 4, 
         "slopeStartStrength": 4, 
         "triggerStrength": 5
@@ -202,7 +202,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 164, 
+        "fireFrequency": 1, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 6, 
         "triggerStrength": 8
@@ -229,7 +229,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 7, 
         "startPosition": 2, 
-        "fireFrequency": 175, 
+        "fireFrequency": 7, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 5, 
         "triggerStrength": 7
@@ -247,7 +247,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 18, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -256,7 +256,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 8, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -283,7 +283,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 7, 
         "startPosition": 2, 
-        "fireFrequency": 148, 
+        "fireFrequency": 3, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 5, 
         "triggerStrength": 7
@@ -292,7 +292,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 5, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -301,7 +301,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 7, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -310,7 +310,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 5, 
         "startPosition": 2, 
-        "fireFrequency": 98, 
+        "fireFrequency": 18, 
         "fireAmplitude": 5, 
         "slopeStartStrength": 4, 
         "triggerStrength": 5
@@ -328,7 +328,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 160, 
+        "fireFrequency": 7, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 3, 
         "triggerStrength": 6
@@ -337,7 +337,7 @@
         "endPosition": 4, 
         "slopeEndStrength": 7, 
         "startPosition": 0, 
-        "fireFrequency": 5, 
+        "fireFrequency": 3, 
         "fireAmplitude": 8, 
         "slopeStartStrength": 7, 
         "triggerStrength": 7
@@ -355,7 +355,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 6, 
         "startPosition": 2, 
-        "fireFrequency": 65, 
+        "fireFrequency": 4, 
         "fireAmplitude": 4, 
         "slopeStartStrength": 5, 
         "triggerStrength": 6
@@ -382,7 +382,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 5, 
         "startPosition": 2, 
-        "fireFrequency": 107, 
+        "fireFrequency": 11, 
         "fireAmplitude": 5, 
         "slopeStartStrength": 4, 
         "triggerStrength": 5
@@ -391,7 +391,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 6, 
         "startPosition": 2, 
-        "fireFrequency": 159, 
+        "fireFrequency": 9, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 5, 
         "triggerStrength": 6
@@ -400,7 +400,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 6, 
         "startPosition": 2, 
-        "fireFrequency": 129, 
+        "fireFrequency": 8, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 5, 
         "triggerStrength": 6
@@ -409,7 +409,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 173, 
+        "fireFrequency": 2, 
         "fireAmplitude": 7, 
         "slopeStartStrength": 6, 
         "triggerStrength": 8
@@ -427,7 +427,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 8, 
         "startPosition": 2, 
-        "fireFrequency": 131, 
+        "fireFrequency": 3, 
         "fireAmplitude": 6, 
         "slopeStartStrength": 6, 
         "triggerStrength": 8
@@ -506,7 +506,7 @@
         "endPosition": 8, 
         "slopeEndStrength": 5, 
         "startPosition": 2, 
-        "fireFrequency": 74, 
+        "fireFrequency": 13, 
         "fireAmplitude": 4, 
         "slopeStartStrength": 4, 
         "triggerStrength": 5
