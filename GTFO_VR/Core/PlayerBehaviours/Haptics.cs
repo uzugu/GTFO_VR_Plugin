@@ -134,7 +134,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
                 PSVR2HapticsManager.TriggerReload(Controllers.AimingTwoHanded);
             }
 
-            if (!VRConfig.configUseWeaponHaptics.Value || VRConfig.configUsePSVR2Haptics.Value)
+            if (!VRConfig.configUseWeaponHaptics.Value)
             {
                 return;
             }
