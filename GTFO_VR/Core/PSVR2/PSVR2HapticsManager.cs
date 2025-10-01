@@ -278,6 +278,9 @@ namespace GTFO_VR.Core.PSVR2
                             await Task.Delay(step.DelayMs);
                         }
                     }
+
+                    // Restore trigger resistance after fire pattern completes
+                    SendCurrentTriggerProfile();
                 });
                 return;
             }
@@ -367,6 +370,54 @@ namespace GTFO_VR.Core.PSVR2
 
             ipc.TriggerEffectVibration(controllerType, RELOAD_POSITION, RELOAD_AMPLITUDE, RELOAD_FREQUENCY);
             DisableOffHandTrigger(ipc);
+        }
+
+        internal static void TriggerWeaponCharging(float chargeProgress)
+        {
+            if (!EnsureReady())
+            {
+                return;
+            }
+
+            var controllerType = GetMainControllerType();
+
+            // Map charge progress (0-1) to trigger resistance
+            // Start with base weapon resistance, ramp up to maximum during charge
+            byte chargeStrength = (byte)Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Lerp(_currentProfile.TriggerStrength, MAX_STRENGTH, chargeProgress)),
+                _currentProfile.TriggerStrength,
+                MAX_STRENGTH
+            );
+
+            // Progressive slope that increases with charge - make it more aggressive
+            byte chargeSlopeEnd = (byte)Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Lerp(_currentProfile.SlopeEndStrength, MAX_STRENGTH, chargeProgress)),
+                _currentProfile.SlopeEndStrength,
+                MAX_STRENGTH
+            );
+
+            var ipc = IpcClient.Instance();
+            ipc.TriggerEffectWeapon(controllerType, _currentProfile.StartPosition, _currentProfile.EndPosition, chargeStrength);
+            ipc.TriggerEffectSlopeFeedback(controllerType, _currentProfile.StartPosition, _currentProfile.EndPosition, _currentProfile.SlopeStartStrength, chargeSlopeEnd);
+            DisableOffHandTrigger(ipc);
+
+            // Add progressive vibration during charge-up (increases with charge level)
+            if (chargeProgress > 0.05f)
+            {
+                // Vibration intensity and frequency ramp up as charge builds
+                byte vibeAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(3, 8, chargeProgress)), 3, MAX_STRENGTH);
+                byte vibeFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(40, 180, chargeProgress)), 40, 255);
+
+                ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, vibeAmplitude, vibeFrequency);
+            }
+
+            // Extra strong pulse at full charge
+            if (chargeProgress >= 0.99f)
+            {
+                byte chargeReadyAmplitude = 8;
+                byte chargeReadyFrequency = 200;
+                ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, chargeReadyAmplitude, chargeReadyFrequency);
+            }
         }
 
         internal static void TriggerDamageFeedback()

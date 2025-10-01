@@ -63,6 +63,21 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void HammerChargingHaptics(float pressure)
         {
+            // PSVR2: Use progressive trigger resistance for weapon charging
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                var currentItem = ItemEquippableEvents.currentItem;
+
+                // Only apply charging resistance to shootable weapons (special charge weapons)
+                // Hammers already have their constant resistance profile applied
+                if (currentItem != null && ItemEquippableEvents.IsItemShootableWeapon(currentItem))
+                {
+                    PSVR2HapticsManager.TriggerWeaponCharging(pressure);
+                }
+                // Don't return - let SteamVR haptics play alongside PSVR2
+            }
+
+            // SteamVR haptics for charging (plays alongside PSVR2 for richer feedback)
             if (!VRConfig.configUseWeaponHaptics.Value)
             {
                 return;
