@@ -270,14 +270,24 @@ namespace GTFO_VR.Core.PSVR2
                 var pattern = new List<PSVR2FirePatternStep>(_currentProfile.FirePattern);
                 Task.Run(async () =>
                 {
+                    int previousDelayMs = 0;
                     foreach (var step in pattern)
                     {
-                        IpcClient.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, step.Amplitude, step.Frequency);
-                        if (step.DelayMs > 0)
+                        // Calculate actual delay between steps (pattern delays are cumulative timestamps)
+                        int actualDelay = step.DelayMs - previousDelayMs;
+                        if (actualDelay > 0)
                         {
-                            await Task.Delay(step.DelayMs);
+                            await Task.Delay(actualDelay);
                         }
+                        previousDelayMs = step.DelayMs;
+
+                        IpcClient.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, step.Amplitude, step.Frequency);
                     }
+
+                    // Add trigger reset after pattern for semi-auto feel (shorter than normal since pattern already provided feedback)
+                    await Task.Delay(40); // Brief pause after last vibration
+                    IpcClient.Instance().TriggerEffectDisable(controllerType);
+                    await Task.Delay(60); // Quick trigger reset
 
                     // Restore trigger resistance after fire pattern completes
                     SendCurrentTriggerProfile();
@@ -297,7 +307,24 @@ namespace GTFO_VR.Core.PSVR2
             var profileFrequency = _currentProfile.FireFrequency;
 
             Log.Debug($"PSVR2 haptics fire vibration: amplitude={profileAmplitude}, freq={profileFrequency}");
+
+            // Fire vibration
             IpcClient.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, profileAmplitude, profileFrequency);
+
+            // Trigger reset: Briefly reduce trigger resistance to simulate trigger reset for semi-auto/burst weapons
+            // This makes each shot feel distinct instead of continuous resistance
+            Task.Run(async () =>
+            {
+                // Disable trigger for a short moment (simulates trigger release/reset)
+                await Task.Delay(50); // 50ms - quick trigger release
+                IpcClient.Instance().TriggerEffectDisable(controllerType);
+
+                // Wait for trigger reset period (mimics mechanical trigger return)
+                await Task.Delay(100); // 100ms - trigger reset time
+
+                // Restore full trigger resistance
+                SendCurrentTriggerProfile();
+            });
         }
 
 

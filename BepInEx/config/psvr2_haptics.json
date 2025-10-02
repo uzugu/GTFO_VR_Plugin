@@ -1,12 +1,12 @@
 {
     "BUCKLAND SBS III": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 2, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
-        "triggerStrength": 6
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 2,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 6,
+        "triggerStrength": 8
     }, 
     "DEFAULT": {
         "endPosition": 8, 
@@ -190,13 +190,13 @@
         "triggerStrength": 6
     }, 
     "SHELLING S49": {
-        "endPosition": 8, 
-        "slopeEndStrength": 5, 
-        "startPosition": 2, 
-        "fireFrequency": 7, 
-        "fireAmplitude": 4, 
-        "slopeStartStrength": 4, 
-        "triggerStrength": 5
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 7,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 6,
+        "triggerStrength": 8
     }, 
     "BUCKLAND S870": {
         "endPosition": 8, 
@@ -298,13 +298,13 @@
         "triggerStrength": 6
     }, 
     "BATALDO CUSTOM K330": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 7, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
-        "triggerStrength": 6
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 4,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 6,
+        "triggerStrength": 8
     }, 
     "RAPTUS TREFFEN 2": {
         "endPosition": 8, 
@@ -352,13 +352,13 @@
         "triggerStrength": 6
     }, 
     "BATALDO 3RB": {
-        "endPosition": 8, 
-        "slopeEndStrength": 6, 
-        "startPosition": 2, 
-        "fireFrequency": 4, 
-        "fireAmplitude": 4, 
-        "slopeStartStrength": 5, 
-        "triggerStrength": 6
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 4,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 6,
+        "triggerStrength": 8
     }, 
     "MALATACK HXC": {
         "endPosition": 8, 
@@ -436,6 +436,8 @@
         "endPosition": 8,
         "slopeEndStrength": 8,
         "startPosition": 2,
+        "triggerStrength": 8,
+        "slopeStartStrength": 6,
         "firePattern": [
             {
                 "delayMs": 0,
@@ -489,9 +491,7 @@
             }
         ],
         "fireFrequency": 190,
-        "fireAmplitude": 7,
-        "slopeStartStrength": 5,
-        "triggerStrength": 7
+        "fireAmplitude": 7
     }, 
     "KOVAC SLEDGEHAMMER": {
         "startPosition": 1,
