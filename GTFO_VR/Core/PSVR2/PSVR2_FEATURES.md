@@ -627,6 +627,11 @@ GTFO_VR.csproj - Project configuration updates
 ```
 
 ### Known Limitations
+- **PSVR2 Toolkit Trigger-Only Limitation**: Weapons with `startPosition == endPosition` (trigger-only resistance) cannot use trigger reset properly
+  - When trigger is disabled then restored with startPosition == endPosition, the resistance stays disabled
+  - **Workaround**: All semi-automatic pistols/revolvers use small trigger travel (startPosition 2-6, endPosition 8)
+  - This provides crisp trigger reset while maintaining snappy feel
+  - Affected weapons: SHELLING S49, MASTABA R66, BATALDO 3RB (HEL Revolver), SHELLING ARID 5, SHELLING NANO, RAPTUS STEIGRO
 - Two-handed aiming parameter passed but not currently utilized
 - Eye tracking functionality in IpcClient not used (gaze polling runs but unused)
 - No per-hand damage direction feedback (both controllers vibrate equally)

@@ -308,18 +308,38 @@ namespace GTFO_VR.Core.PSVR2
 
             Log.Debug($"PSVR2 haptics fire vibration: amplitude={profileAmplitude}, freq={profileFrequency}");
 
-            // Fire vibration - DISABLE weapon resistance first so vibration can be felt
             var ipc = IpcClient.Instance();
-            ipc.TriggerEffectDisable(controllerType);
+
+            // Check if weapon has trigger-only resistance (startPosition == endPosition)
+            // For trigger-only weapons, don't disable resistance (would leave trigger stuck)
+            bool isTriggerOnly = _currentProfile.StartPosition == _currentProfile.EndPosition;
+
+            if (!isTriggerOnly)
+            {
+                // For weapons with travel: disable resistance so vibration can be felt
+                ipc.TriggerEffectDisable(controllerType);
+            }
+
+            // Send vibration pulse
             ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, profileAmplitude, profileFrequency);
 
-            // Trigger reset: Keep trigger disabled briefly, then restore
+            // Trigger reset timing
+            if (isTriggerOnly)
+            {
+                // For trigger-only weapons (pistols, revolvers):
+                // Don't restore resistance - let it naturally restore when trigger is released
+                // The startPosition==endPosition means resistance is always at trigger point
+                // Just wait for vibration to finish, then we're done
+                return;
+            }
+
+            // For weapons with travel: restore resistance after reset delay
             Task.Run(async () =>
             {
-                // Wait for vibration to be felt
+                // Wait for vibration pulse
                 await Task.Delay(60); // 60ms - vibration pulse duration
 
-                // Brief additional delay for trigger reset feel
+                // Additional delay while disabled for trigger reset feel
                 await Task.Delay(50); // 50ms - trigger reset time
 
                 // Restore full trigger resistance

@@ -84,7 +84,7 @@
     "RAPTUS STEIGRO": {
         "endPosition": 8,
         "slopeEndStrength": 6,
-        "startPosition": 6,
+        "startPosition": 2,
         "fireFrequency": 12,
         "fireAmplitude": 6,
         "slopeStartStrength": 6,
@@ -192,7 +192,7 @@
     "SHELLING S49": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 8,
+        "startPosition": 6,
         "fireFrequency": 7,
         "fireAmplitude": 8,
         "slopeStartStrength": 8,
@@ -228,7 +228,7 @@
     "MASTABA R66": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 8,
+        "startPosition": 6,
         "fireFrequency": 7,
         "fireAmplitude": 8,
         "slopeStartStrength": 8,
@@ -327,7 +327,7 @@
     "SHELLING NANO": {
         "endPosition": 8,
         "slopeEndStrength": 6,
-        "startPosition": 6,
+        "startPosition": 2,
         "fireFrequency": 7,
         "fireAmplitude": 6,
         "slopeStartStrength": 6,
@@ -354,7 +354,7 @@
     "BATALDO 3RB": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 8,
+        "startPosition": 6,
         "fireFrequency": 4,
         "fireAmplitude": 8,
         "slopeStartStrength": 8,
@@ -408,7 +408,7 @@
     "SHELLING ARID 5": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 8,
+        "startPosition": 6,
         "fireFrequency": 2,
         "fireAmplitude": 8,
         "slopeStartStrength": 8,
