@@ -27,6 +27,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
             HeldItemEvents.OnItemCharging += HammerChargingHaptics;
             VRMeleeWeaponEvents.OnHammerSmack += HammerSmackHaptics;
             ItemEquippableEvents.OnPlayerWieldItem += OnPlayerWieldItemPSVR2;
+            BioScannerEvents.OnBioScannerCharging += BioScannerChargingHaptics;
+            BioScannerEvents.OnBioScannerWaveStart += BioScannerWaveHaptics;
+            BioScannerEvents.OnEnemyDetected += EnemyDetectedHaptics;
         }
 
         public static float GetFireHapticStrength(Weapon weapon, float intensityFactor = 1f)
@@ -111,6 +114,13 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void GlueGunPressureHaptics(float pressure)
         {
+            // PSVR2: Progressive trigger resistance with mechanical pressure feel
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.TriggerGlueGunPressure(pressure);
+                // Don't return - let SteamVR haptics play alongside
+            }
+
             if (!VRConfig.configUseWeaponHaptics.Value)
             {
                 return;
@@ -243,6 +253,36 @@ namespace GTFO_VR.Core.PlayerBehaviours
             }
         }
 
+        private void BioScannerChargingHaptics(float tagProgress)
+        {
+            if (!VRConfig.configUsePSVR2Haptics.Value)
+            {
+                return;
+            }
+
+            PSVR2HapticsManager.TriggerBioScannerCharge(tagProgress);
+        }
+
+        private void BioScannerWaveHaptics()
+        {
+            if (!VRConfig.configUsePSVR2Haptics.Value)
+            {
+                return;
+            }
+
+            PSVR2HapticsManager.TriggerBioScannerWave();
+        }
+
+        private void EnemyDetectedHaptics()
+        {
+            if (!VRConfig.configUsePSVR2Haptics.Value)
+            {
+                return;
+            }
+
+            PSVR2HapticsManager.TriggerEnemyDetection();
+        }
+
         private void OnDestroy()
         {
             PlayerReceivedDamageEvents.OnPlayerTakeDamage -= PlayReceiveDamageHaptics;
@@ -252,6 +292,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
             HeldItemEvents.OnItemCharging -= HammerChargingHaptics;
             VRMeleeWeaponEvents.OnHammerSmack -= HammerSmackHaptics;
             ItemEquippableEvents.OnPlayerWieldItem -= OnPlayerWieldItemPSVR2;
+            BioScannerEvents.OnBioScannerCharging -= BioScannerChargingHaptics;
+            BioScannerEvents.OnBioScannerWaveStart -= BioScannerWaveHaptics;
+            BioScannerEvents.OnEnemyDetected -= EnemyDetectedHaptics;
 
             PSVR2HapticsManager.Shutdown();
         }

@@ -25,16 +25,24 @@ This implementation integrates PlayStation VR2 adaptive trigger feedback into GT
 
 ### 2. Weapon-Specific Profiles
 - **40+ Weapon Configurations**: Each GTFO weapon has custom trigger settings in `psvr2_haptics.json`
-  - Assault rifles: Medium resistance with moderate vibration
-  - Shotguns: Heavy resistance with strong recoil feedback
-  - SMGs: Light resistance with rapid vibration patterns
-  - Sniper rifles: Heavy resistance with pronounced kick
-  - Pistols: Light-to-medium resistance with crisp feedback
+  - **Assault rifles**: Medium resistance with moderate vibration
+  - **Shotguns**: Maximum resistance (strength 8) with strong recoil feedback (amplitude 7-8)
+  - **SMGs**: Variable resistance with high-frequency vibration patterns
+  - **Sniper rifles**: Heavy trigger-only resistance (no slope) with pronounced kick
+  - **Pistols & Revolvers**: No slope (trigger-only) for crisp, snappy feedback
+  - **Heavy weapons**: Maximum strength (8) for hardest trigger pull (e.g., DREKKER INEX DREI)
+
+- **Trigger Philosophy**:
+  - **"Slop" (slope)**: Progressive resistance that builds as trigger is pulled
+  - **"Just trigger"**: Immediate resistance (startPosition = endPosition), no progressive build
+  - **Semi-auto/Pistols**: Minimal or no slop for distinct shot-to-shot feel
+  - **Heavy/Shotguns**: Moderate slop for weight feel, maximum feedback strength
 
 - **Special Fire Patterns**: Advanced weapons like OMNECO EXP1 and OMNECO LRG feature multi-stage vibration sequences that simulate complex recoil characteristics
-  - Sequential amplitude/frequency steps
-  - Configurable delays between stages
+  - Sequential amplitude/frequency steps with cumulative delays
+  - Configurable delays between stages (corrected from incremental to cumulative timing)
   - Simulates weapon-specific recoil behavior (e.g., charge-up, main blast, dampening)
+  - OMNECO LRG: Extended 510ms sequence with higher pitch (240 Hz peak) for burst feel
 
 ### 3. Melee Weapon Feedback
 - **Hammer Charging**: Heavy slope feedback provides constant tension during charge
@@ -55,7 +63,45 @@ This implementation integrates PlayStation VR2 adaptive trigger feedback into GT
     - Scaled intensity based on impact force
   - Automatically restores trigger slope after impact sequence completes
 
-### 4. Weapon Fire Haptics
+### 4. Weapon Charging Haptics
+- **Weapon Charge-Up**: Progressive trigger resistance and vibration during special weapon charging
+  - **Progressive Resistance**: Builds from base weapon strength to maximum (8) as charge progresses
+  - **Ramping Vibration**: Continuous vibration that intensifies with charge
+    - Amplitude: 3→8 (scales with charge 0-100%)
+    - Frequency: 40→180 Hz (scales with charge progression)
+  - **Full Charge Pulse**: Strong vibration at 100% charge (amplitude 8, 200 Hz)
+  - **Weapons**: Burst Cannon, OMNECO LRG, Snipers with charge, special weapons
+  - **Concurrent Feedback**: Works alongside SteamVR haptics for richer feedback
+  - Trigger profile automatically restored after charge completes
+
+### 5. C-Foam Launcher Haptics
+- **Glue Gun Pressure**: Progressive feedback during foam dispensing
+  - **Moderate Resistance**: Builds with pressure (strength 5→7)
+  - **Low-Frequency Vibration**: Mechanical feel (20-60 Hz)
+    - Amplitude: 2→6 (scales with pressure)
+  - **Position**: 4 (mid-trigger vibration)
+  - Simulates viscous foam dispensing with tactile feedback
+
+### 6. Bio Scanner Haptics
+- **Tagging Charge**: High-tech feedback during enemy tagging
+  - **Strong Resistance**: Builds during tag (strength 6→8)
+  - **High-Pitched Vibration**: 100-220 Hz (tech-like feel)
+    - Amplitude: 5→8 (scales with tag progress)
+  - **Position**: 3 (mid-trigger vibration)
+
+- **Wave Pulse**: Decay effect when tag completes successfully
+  - **7-Step Sequence**: Wave propagation simulation
+  - **Outgoing Wave**: Strong to medium (amplitude 8→5, frequency 200→150 Hz)
+  - **Reflected Wave**: Medium to weak (amplitude 4→1, frequency 120→60 Hz)
+  - **Total Duration**: ~1.45 seconds with exponential decay timing
+  - Only triggers on successful full-duration tag completion
+
+- **Enemy Detection**: Short vibration pulse when enemies enter scanner range
+  - **Passive Detection**: Triggers during normal scanning (not while tagging)
+  - **Sharp Pulse**: Amplitude 5, 150 Hz
+  - **Once Per Frame**: Only one pulse even if multiple enemies detected
+
+### 7. Weapon Fire Haptics
 - **Standard Fire**: Single vibration pulse with weapon-specific parameters
   - Amplitude: 4-8 (scaled by weapon kick strength)
   - Frequency: 60-210 Hz (scaled by weapon rumble power)
@@ -63,11 +109,18 @@ This implementation integrates PlayStation VR2 adaptive trigger feedback into GT
   - Position: 3 (mid-trigger vibration point)
 
 - **Pattern-Based Fire**: Multi-step sequences for special weapons
-  - Up to 9 sequential vibration steps
+  - Up to 10 sequential vibration steps
   - Per-step amplitude, frequency, and delay control
+  - Example: OMNECO LRG simulates burst with 510ms extended sequence (higher pitch, longer duration)
   - Example: OMNECO EXP1 simulates charge weapon with 400ms sequence
 
-### 5. Reload Feedback
+- **Trigger Reset**: Semi-auto and burst weapons get distinct shot feel
+  - **Fire Pattern Weapons**: 40ms pulse → disable → 60ms → restore (100ms total)
+  - **Standard Weapons**: 50ms pulse → disable → 100ms → restore (150ms total)
+  - Prevents "trigger stays engaged forever" on semi-auto
+  - Creates crisp, distinct feedback for each shot
+
+### 8. Reload Feedback
 - **Reload Vibration**: Consistent tactile pulse on reload action
   - Position: 4
   - Amplitude: 6
@@ -75,7 +128,7 @@ This implementation integrates PlayStation VR2 adaptive trigger feedback into GT
   - Targets main hand only
   - Works alongside SteamVR controller rumble (not replaced)
 
-### 6. Damage Feedback
+### 9. Damage Feedback
 - **Damage Pulse**: Both controllers vibrate on player damage
   - Position: 5
   - Amplitude: 7
@@ -104,10 +157,15 @@ This implementation integrates PlayStation VR2 adaptive trigger feedback into GT
 
 **Key Methods:**
 - `ApplyWeaponProfile(ItemEquippable item)`: Builds and applies trigger profile when weapon equipped
-- `TriggerWeaponFire(float intensity, bool twoHanded)`: Fires vibration (pattern or single pulse)
+- `TriggerWeaponFire(float intensity, bool twoHanded)`: Fires vibration (pattern or single pulse) with trigger reset
 - `TriggerReload(bool twoHanded)`: Reload vibration feedback
 - `TriggerMeleeImpact(float damage, bool hitEnemy)`: Async decaying vibration for melee hits
 - `TriggerDamageFeedback()`: Both-hands damage alert
+- `TriggerWeaponCharging(float chargeProgress)`: Progressive resistance and vibration during weapon charge (0-1)
+- `TriggerGlueGunPressure(float pressure)`: Progressive resistance and low-freq vibration for C-Foam (0-1)
+- `TriggerBioScannerCharge(float tagProgress)`: Strong resistance and high-freq vibration during tagging (0-1)
+- `TriggerBioScannerWave()`: 7-step decay wave effect on successful tag completion
+- `TriggerEnemyDetection()`: Short sharp pulse when enemy enters scanner range
 - `DisableTriggers()`: Clears all trigger effects (used when non-weapon items equipped)
 - `SendCurrentTriggerProfile()`: Re-applies weapon + slope resistance (helper for post-transient restoration)
 
@@ -226,7 +284,7 @@ class PSVR2FirePatternStep {
 
 ### Haptics.cs (Main Integration Point)
 
-**Setup (Haptics.cs:22)**
+**Setup (Haptics.cs:20)**
 ```csharp
 public void Setup() {
     PSVR2HapticsManager.Initialize();
@@ -237,6 +295,9 @@ public void Setup() {
     HeldItemEvents.OnItemCharging += HammerChargingHaptics;
     VRMeleeWeaponEvents.OnHammerSmack += HammerSmackHaptics;
     ItemEquippableEvents.OnPlayerWieldItem += OnPlayerWieldItemPSVR2;
+    BioScannerEvents.OnBioScannerCharging += BioScannerChargingHaptics;
+    BioScannerEvents.OnBioScannerWaveStart += BioScannerWaveHaptics;
+    BioScannerEvents.OnEnemyDetected += EnemyDetectedHaptics;
 }
 ```
 
@@ -266,19 +327,36 @@ public void Setup() {
    - Early return prevents double haptics
 
 5. **OnItemCharging (Haptics.cs:64)**
-   - Triggered periodically during hammer charge
-   - SteamVR only (PSVR2 uses continuous trigger slope instead)
-   - Throttled to 0.1s intervals with increasing intensity
+   - Triggered periodically during item charging (hammers, special weapons)
+   - PSVR2: Routes to `TriggerWeaponCharging()` for shootable weapons with charge-up
+   - Hammers use continuous trigger slope (no vibration during charge)
+   - SteamVR haptics play alongside for complementary feedback
 
 6. **OnPlayerTakeDamage (Haptics.cs:187)**
    - Triggered when player receives damage
    - PSVR2: Both controllers vibrate at 220 Hz
    - SteamVR fallback: Scaled by damage amount
 
-7. **OnPressureUpdate (Haptics.cs:97)**
-   - Triggered during glue gun usage
-   - SteamVR only (no PSVR2 integration yet)
-   - Progressive vibration during glue application
+7. **OnPressureUpdate (Haptics.cs:112)**
+   - Triggered during C-Foam launcher usage
+   - PSVR2: Routes to `TriggerGlueGunPressure()` with progressive resistance
+   - SteamVR haptics play alongside (not replaced)
+   - Progressive vibration during foam dispensing
+
+8. **OnBioScannerCharging (Haptics.cs:255)**
+   - Triggered during bio scanner enemy tagging
+   - PSVR2 only (no SteamVR fallback)
+   - Routes to `TriggerBioScannerCharge()` with strong resistance and high-freq vibration
+
+9. **OnBioScannerWaveStart (Haptics.cs:265)**
+   - Triggered when bio scanner tag completes successfully
+   - PSVR2 only (no SteamVR fallback)
+   - Routes to `TriggerBioScannerWave()` for decay wave effect
+
+10. **OnEnemyDetected (Haptics.cs:275)**
+    - Triggered when enemy first appears on bio scanner
+    - PSVR2 only (no SteamVR fallback)
+    - Routes to `TriggerEnemyDetection()` for short pulse feedback
 
 ### ItemEquippableEvents.cs
 
@@ -358,7 +436,7 @@ Controllers.AimingTwoHanded          // Two-handed weapon state
 }
 ```
 
-**Shotgun (Heavy)**
+**Shotgun (Heavy, Maximum Feedback)**
 ```json
 "BUCKLAND S870": {
   "startPosition": 2,
@@ -366,34 +444,60 @@ Controllers.AimingTwoHanded          // Two-handed weapon state
   "triggerStrength": 8,
   "slopeStartStrength": 6,
   "slopeEndStrength": 8,
-  "fireAmplitude": 7,
+  "fireAmplitude": 8,
   "fireFrequency": 1
 }
 ```
 
-**SMG (Light)**
+**SMG (Heavy, Trigger-Only)**
 ```json
 "SHELLING S49": {
-  "startPosition": 2,
+  "startPosition": 8,
   "endPosition": 8,
-  "triggerStrength": 5,
-  "slopeStartStrength": 4,
-  "slopeEndStrength": 5,
-  "fireAmplitude": 4,
+  "triggerStrength": 8,
+  "slopeStartStrength": 8,
+  "slopeEndStrength": 8,
+  "fireAmplitude": 8,
   "fireFrequency": 7
 }
 ```
 
-**Pistol (Crisp)**
+**Pistol (Crisp, No Slop)**
 ```json
 "DREKKER DEL P1": {
-  "startPosition": 0,
+  "startPosition": 4,
   "endPosition": 4,
+  "triggerStrength": 8,
+  "slopeStartStrength": 8,
+  "slopeEndStrength": 8,
+  "fireAmplitude": 8,
+  "fireFrequency": 3
+}
+```
+
+**Revolver (Strong, No Slop)**
+```json
+"BATALDO 3RB": {
+  "startPosition": 8,
+  "endPosition": 8,
+  "triggerStrength": 8,
+  "slopeStartStrength": 8,
+  "slopeEndStrength": 8,
+  "fireAmplitude": 8,
+  "fireFrequency": 4
+}
+```
+
+**DMR (Snappy, High-Frequency Pulse)**
+```json
+"TR22 HANAWAY": {
+  "startPosition": 7,
+  "endPosition": 8,
   "triggerStrength": 7,
   "slopeStartStrength": 7,
   "slopeEndStrength": 7,
   "fireAmplitude": 8,
-  "fireFrequency": 3
+  "fireFrequency": 180
 }
 ```
 
@@ -464,9 +568,29 @@ Controllers.AimingTwoHanded          // Two-handed weapon state
 - **Upstream Repository**: `DSprtn/GTFO_VR_Plugin`
 
 ### Recent Commits
-1. **fc911ad**: Scale fireFrequency by weapon ROF
-2. **0acf157**: Restore SteamVR reload rumble alongside PSVR2
-3. **6628c92**: Add PSVR2 haptics support and hammer feedback
+1. **9af1f22**: Add progressive weapon charging haptics for PSVR2
+2. **3d2118b**: Add trigger reset for semi-auto/burst weapons and boost heavy weapon strength
+3. **[Latest]**: Add C-Foam launcher and bio scanner haptics support
+4. **[Latest]**: Comprehensive weapon profile tuning (40+ weapons adjusted)
+5. **fc911ad**: Scale fireFrequency by weapon ROF
+6. **0acf157**: Restore SteamVR reload rumble alongside PSVR2
+7. **6628c92**: Add PSVR2 haptics support and hammer feedback
+
+### Key Features Added This Session
+1. **Weapon Charging System**: Progressive resistance + vibration for charge-up weapons
+2. **C-Foam Launcher**: Pressure-based feedback with mechanical low-freq vibration
+3. **Bio Scanner Suite**:
+   - Tagging charge with strong high-freq feedback
+   - Wave pulse on successful tag completion (7-step decay)
+   - Enemy detection pulse when enemies enter range
+4. **Trigger Reset**: Semi-auto/burst weapons now have crisp per-shot feedback
+5. **Fire Pattern Timing Fix**: Corrected from incremental to cumulative delays
+6. **Comprehensive Profile Tuning**:
+   - All shotguns boosted to maximum feedback (amplitude 8)
+   - All pistols/revolvers set to trigger-only (no slop)
+   - Heavy weapons maximized (DREKKER INEX DREI = hardest)
+   - Frequency adjustments for snappier/higher-pitched weapons
+   - OMNECO LRG extended and pitched higher (510ms, 240 Hz peak)
 
 ### Files Modified
 ```
@@ -474,15 +598,25 @@ GTFO_VR/Core/PSVR2/
 ├── IpcClient.cs (346 lines) - TCP client implementation
 ├── IpcProtocol.cs (135 lines) - Command structures
 ├── PSVR2HapticsConfig.cs (204 lines) - JSON config loader
-├── PSVR2HapticsManager.cs (408 lines) - Main coordination
+├── PSVR2HapticsManager.cs (590 lines) - Main coordination with all haptic methods
 ├── PSVR2WeaponProfile.cs (24 lines) - Data structures
 └── PSVR2_FEATURES.md - This documentation
 
 GTFO_VR/Core/PlayerBehaviours/
-└── Haptics.cs - Integration hooks (+61 lines)
+└── Haptics.cs - Integration hooks (~300 lines)
+
+GTFO_VR/Events/
+├── BioScannerEvents.cs (NEW) - Bio scanner event system
+├── GlueGunEvents.cs - C-Foam launcher events
+└── [Other event files]
+
+GTFO_VR/Injections/Events/
+├── InjectBioScannerEvents.cs (NEW) - Harmony patches for bio scanner
+├── InjectGlueGunEvents.cs - Harmony patches for C-Foam
+└── [Other injection files]
 
 BepInEx/config/
-└── psvr2_haptics.json (514 lines) - Weapon profiles
+└── psvr2_haptics.json (514 lines) - 40+ weapon profiles with tuned settings
 
 GTFO_VR/Core/
 └── VRConfig.cs - Added configUsePSVR2Haptics toggle
@@ -493,18 +627,18 @@ GTFO_VR.csproj - Project configuration updates
 ```
 
 ### Known Limitations
-- Glue gun pressure feedback not implemented for PSVR2 (SteamVR only)
 - Two-handed aiming parameter passed but not currently utilized
 - Eye tracking functionality in IpcClient not used (gaze polling runs but unused)
 - No per-hand damage direction feedback (both controllers vibrate equally)
+- Fire pattern delays were originally incremental (fixed to cumulative in recent commits)
 
 ### Future Enhancements
 - Directional damage feedback (stronger vibration on hit side)
-- Progressive trigger resistance during glue gun usage
 - Two-handed weapon stabilization via trigger feedback
-- Burst fire pattern detection and unique feedback
 - Weapon jam/overheat trigger locking simulation
 - Environmental interaction feedback (door opening resistance, etc.)
+- Per-weapon charging frequency customization (currently hardcoded 40-180 Hz)
+- Additional tool weapon support (mine deployer, etc.)
 
 ---
 

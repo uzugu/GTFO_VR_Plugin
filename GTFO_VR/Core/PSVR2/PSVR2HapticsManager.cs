@@ -308,19 +308,19 @@ namespace GTFO_VR.Core.PSVR2
 
             Log.Debug($"PSVR2 haptics fire vibration: amplitude={profileAmplitude}, freq={profileFrequency}");
 
-            // Fire vibration
-            IpcClient.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, profileAmplitude, profileFrequency);
+            // Fire vibration - DISABLE weapon resistance first so vibration can be felt
+            var ipc = IpcClient.Instance();
+            ipc.TriggerEffectDisable(controllerType);
+            ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, profileAmplitude, profileFrequency);
 
-            // Trigger reset: Briefly reduce trigger resistance to simulate trigger reset for semi-auto/burst weapons
-            // This makes each shot feel distinct instead of continuous resistance
+            // Trigger reset: Keep trigger disabled briefly, then restore
             Task.Run(async () =>
             {
-                // Disable trigger for a short moment (simulates trigger release/reset)
-                await Task.Delay(50); // 50ms - quick trigger release
-                IpcClient.Instance().TriggerEffectDisable(controllerType);
+                // Wait for vibration to be felt
+                await Task.Delay(60); // 60ms - vibration pulse duration
 
-                // Wait for trigger reset period (mimics mechanical trigger return)
-                await Task.Delay(100); // 100ms - trigger reset time
+                // Brief additional delay for trigger reset feel
+                await Task.Delay(50); // 50ms - trigger reset time
 
                 // Restore full trigger resistance
                 SendCurrentTriggerProfile();
@@ -445,6 +445,149 @@ namespace GTFO_VR.Core.PSVR2
                 byte chargeReadyFrequency = 200;
                 ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, chargeReadyAmplitude, chargeReadyFrequency);
             }
+        }
+
+        private static float _lastGluePressure = -1f;
+
+        internal static void TriggerGlueGunPressure(float pressure)
+        {
+            if (!EnsureReady())
+            {
+                return;
+            }
+
+            // Only update if pressure changed significantly (avoid spamming commands every frame)
+            if (Mathf.Abs(pressure - _lastGluePressure) < 0.05f && pressure < 0.99f)
+            {
+                return;
+            }
+            _lastGluePressure = pressure;
+
+            var controllerType = GetMainControllerType();
+            var ipc = IpcClient.Instance();
+
+            // C-Foam launcher: Progressive resistance + vibration during charging
+            if (pressure > 0.05f)
+            {
+                // Progressive resistance (feels like building pressure)
+                byte pressureStrength = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(3, 7, pressure)), 3, 7);
+                ipc.TriggerEffectWeapon(controllerType, 2, 8, pressureStrength);
+
+                // Continuous vibration at trigger position
+                byte vibeAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(5, 8, pressure)), 5, MAX_STRENGTH);
+                byte vibeFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(60, 120, pressure)), 60, 255);
+                ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, vibeAmplitude, vibeFrequency);
+            }
+            else
+            {
+                // Reset when not charging
+                ipc.TriggerEffectDisable(controllerType);
+                _lastGluePressure = -1f;
+            }
+
+            // Strong pulse when fully charged
+            if (pressure >= 0.99f)
+            {
+                ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, 8, 180);
+            }
+        }
+
+        internal static void TriggerBioScannerCharge(float tagProgress)
+        {
+            if (!EnsureReady())
+            {
+                return;
+            }
+
+            var controllerType = GetMainControllerType();
+
+            // Bio scanner feels high-tech and energetic
+            // Strong resistance with high-pitched vibration
+            byte scanStrength = (byte)Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Lerp(6, 8, tagProgress)),
+                6,
+                MAX_STRENGTH
+            );
+
+            byte scanSlopeEnd = (byte)Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Lerp(7, 8, tagProgress)),
+                7,
+                MAX_STRENGTH
+            );
+
+            var ipc = IpcClient.Instance();
+            ipc.TriggerEffectWeapon(controllerType, 1, 8, scanStrength);
+            ipc.TriggerEffectSlopeFeedback(controllerType, 1, 8, 7, scanSlopeEnd);
+            DisableOffHandTrigger(ipc);
+
+            // High frequency vibration (100-220 Hz range - high pitched electronic feel)
+            if (tagProgress > 0.02f)
+            {
+                byte vibeAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(5, 8, tagProgress)), 5, MAX_STRENGTH);
+                byte vibeFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(100, 220, tagProgress)), 100, 255);
+                ipc.TriggerEffectVibration(controllerType, 3, vibeAmplitude, vibeFrequency);
+            }
+        }
+
+        internal static void TriggerBioScannerWave()
+        {
+            if (!EnsureReady())
+            {
+                return;
+            }
+
+            var controllerType = GetMainControllerType();
+
+            // Pulse wave that goes out and reflects back, losing strength
+            Task.Run(async () =>
+            {
+                var ipc = IpcClient.Instance();
+
+                // Wave going out (strong to medium)
+                ipc.TriggerEffectVibration(controllerType, 3, 8, 200);
+                await Task.Delay(150);
+
+                ipc.TriggerEffectVibration(controllerType, 3, 7, 180);
+                await Task.Delay(150);
+
+                ipc.TriggerEffectVibration(controllerType, 3, 5, 150);
+                await Task.Delay(200);
+
+                // Wave reflecting back (medium to weak)
+                ipc.TriggerEffectVibration(controllerType, 3, 4, 120);
+                await Task.Delay(200);
+
+                ipc.TriggerEffectVibration(controllerType, 3, 3, 100);
+                await Task.Delay(250);
+
+                ipc.TriggerEffectVibration(controllerType, 3, 2, 80);
+                await Task.Delay(300);
+
+                // Final weak echo
+                ipc.TriggerEffectVibration(controllerType, 3, 1, 60);
+                await Task.Delay(100);
+
+                // Restore trigger after wave completes
+                SendCurrentTriggerProfile();
+            });
+        }
+
+        /// <summary>
+        /// Enemy detected on bio scanner - short sharp vibration pulse
+        /// </summary>
+        internal static void TriggerEnemyDetection()
+        {
+            if (!EnsureReady())
+            {
+                return;
+            }
+
+            var controllerType = GetMainControllerType();
+            var ipc = IpcClient.Instance();
+
+            // Short, sharp vibration pulse (60ms)
+            // Medium-high amplitude and frequency for noticeable but not intrusive feedback
+            ipc.TriggerEffectVibration(controllerType, 3, 5, 150);
         }
 
         internal static void TriggerDamageFeedback()

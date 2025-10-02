@@ -4,7 +4,7 @@
         "slopeEndStrength": 8,
         "startPosition": 2,
         "fireFrequency": 2,
-        "fireAmplitude": 7,
+        "fireAmplitude": 8,
         "slopeStartStrength": 6,
         "triggerStrength": 8
     }, 
@@ -82,21 +82,21 @@
         "triggerStrength": 7
     }, 
     "RAPTUS STEIGRO": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 12, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 6,
+        "startPosition": 6,
+        "fireFrequency": 12,
+        "fireAmplitude": 6,
+        "slopeStartStrength": 6,
         "triggerStrength": 6
     }, 
     "BUCKLAND XDIST2": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 14, 
-        "fireAmplitude": 7, 
-        "slopeStartStrength": 6, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 6,
+        "fireFrequency": 14,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 6,
         "triggerStrength": 8
     }, 
     "TECHMAN ARBALIST V": {
@@ -163,13 +163,13 @@
         "triggerStrength": 8
     }, 
     "DREKKER INEX DREI": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 1, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
-        "triggerStrength": 6
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 1,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 3,
+        "triggerStrength": 8
     }, 
     "BATALDO J 300": {
         "endPosition": 8, 
@@ -181,30 +181,30 @@
         "triggerStrength": 7
     }, 
     "HANAWAY PSB": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 9, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 9,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 3,
         "triggerStrength": 6
     }, 
     "SHELLING S49": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 2,
+        "startPosition": 8,
         "fireFrequency": 7,
-        "fireAmplitude": 7,
-        "slopeStartStrength": 6,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 8,
         "triggerStrength": 8
     }, 
     "BUCKLAND S870": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 1, 
-        "fireAmplitude": 7, 
-        "slopeStartStrength": 6, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 1,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 6,
         "triggerStrength": 8
     }, 
     "ISOCO STINGER": {
@@ -226,13 +226,13 @@
         "triggerStrength": 7
     }, 
     "MASTABA R66": {
-        "endPosition": 8, 
-        "slopeEndStrength": 7, 
-        "startPosition": 2, 
-        "fireFrequency": 7, 
-        "fireAmplitude": 7, 
-        "slopeStartStrength": 5, 
-        "triggerStrength": 7
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 8,
+        "fireFrequency": 7,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 8,
+        "triggerStrength": 8
     }, 
     "MACO GAVEL": {
         "startPosition": 1,
@@ -244,21 +244,21 @@
         "fireFrequency": 0
     }, 
     "DREKKER CLR": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 18, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 30,
+        "fireAmplitude": 6,
+        "slopeStartStrength": 3,
         "triggerStrength": 6
     }, 
     "MALATACK CH 4": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 8, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 6,
+        "fireFrequency": 8,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 6,
         "triggerStrength": 6
     }, 
     "OMNECO MAUL": {
@@ -280,67 +280,67 @@
         "triggerStrength": 6
     }, 
     "TR22 HANAWAY": {
-        "endPosition": 8, 
-        "slopeEndStrength": 7, 
-        "startPosition": 2, 
-        "fireFrequency": 3, 
-        "fireAmplitude": 7, 
-        "slopeStartStrength": 5, 
+        "endPosition": 8,
+        "slopeEndStrength": 7,
+        "startPosition": 7,
+        "fireFrequency": 180,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 7,
         "triggerStrength": 7
     }, 
     "DREKKER PRES MOD 556": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 5, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 8,
+        "fireFrequency": 5,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 8,
         "triggerStrength": 6
     }, 
     "BATALDO CUSTOM K330": {
         "endPosition": 8,
         "slopeEndStrength": 8,
         "startPosition": 2,
-        "fireFrequency": 4,
-        "fireAmplitude": 7,
+        "fireFrequency": 50,
+        "fireAmplitude": 8,
         "slopeStartStrength": 6,
         "triggerStrength": 8
     }, 
     "RAPTUS TREFFEN 2": {
-        "endPosition": 8, 
-        "slopeEndStrength": 5, 
-        "startPosition": 2, 
-        "fireFrequency": 18, 
-        "fireAmplitude": 5, 
-        "slopeStartStrength": 4, 
+        "endPosition": 8,
+        "slopeEndStrength": 5,
+        "startPosition": 5,
+        "fireFrequency": 30,
+        "fireAmplitude": 5,
+        "slopeStartStrength": 5,
         "triggerStrength": 5
     }, 
     "TECHMAN KLAUST 6": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 160, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 160,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 3,
         "triggerStrength": 6
     }, 
     "SHELLING NANO": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 7, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 3, 
+        "endPosition": 8,
+        "slopeEndStrength": 6,
+        "startPosition": 6,
+        "fireFrequency": 7,
+        "fireAmplitude": 6,
+        "slopeStartStrength": 6,
         "triggerStrength": 6
     }, 
     "DREKKER DEL P1": {
-        "endPosition": 4, 
-        "slopeEndStrength": 7, 
-        "startPosition": 0, 
-        "fireFrequency": 3, 
-        "fireAmplitude": 8, 
-        "slopeStartStrength": 7, 
-        "triggerStrength": 7
+        "endPosition": 4,
+        "slopeEndStrength": 8,
+        "startPosition": 4,
+        "fireFrequency": 3,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 8,
+        "triggerStrength": 8
     }, 
     "STALWART FLOW G2": {
         "endPosition": 8, 
@@ -354,19 +354,19 @@
     "BATALDO 3RB": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 2,
+        "startPosition": 8,
         "fireFrequency": 4,
-        "fireAmplitude": 7,
-        "slopeStartStrength": 6,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 8,
         "triggerStrength": 8
     }, 
     "MALATACK HXC": {
-        "endPosition": 8, 
-        "slopeEndStrength": 6, 
-        "startPosition": 2, 
-        "fireFrequency": 8, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 5, 
+        "endPosition": 8,
+        "slopeEndStrength": 6,
+        "startPosition": 6,
+        "fireFrequency": 8,
+        "fireAmplitude": 6,
+        "slopeStartStrength": 6,
         "triggerStrength": 6
     }, 
     "WOX COMPACT": {
@@ -379,21 +379,21 @@
         "triggerStrength": 6
     }, 
     "VAN AUKEN LTC5": {
-        "endPosition": 8, 
-        "slopeEndStrength": 5, 
-        "startPosition": 2, 
-        "fireFrequency": 11, 
-        "fireAmplitude": 5, 
-        "slopeStartStrength": 4, 
+        "endPosition": 8,
+        "slopeEndStrength": 5,
+        "startPosition": 5,
+        "fireFrequency": 11,
+        "fireAmplitude": 5,
+        "slopeStartStrength": 5,
         "triggerStrength": 5
     }, 
     "TECHMAN VERUTA XII": {
-        "endPosition": 8, 
-        "slopeEndStrength": 6, 
-        "startPosition": 2, 
-        "fireFrequency": 9, 
-        "fireAmplitude": 7, 
-        "slopeStartStrength": 5, 
+        "endPosition": 8,
+        "slopeEndStrength": 6,
+        "startPosition": 2,
+        "fireFrequency": 14,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 5,
         "triggerStrength": 6
     }, 
     "MALATACK LX": {
@@ -406,12 +406,12 @@
         "triggerStrength": 6
     }, 
     "SHELLING ARID 5": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 2, 
-        "fireAmplitude": 7, 
-        "slopeStartStrength": 6, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 8,
+        "fireFrequency": 2,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 8,
         "triggerStrength": 8
     }, 
     "ATTROC TITANIUM": {
@@ -424,12 +424,12 @@
         "triggerStrength": 6
     }, 
     "BUCKLAND AF6": {
-        "endPosition": 8, 
-        "slopeEndStrength": 8, 
-        "startPosition": 2, 
-        "fireFrequency": 3, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 6, 
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 3,
+        "fireAmplitude": 7,
+        "slopeStartStrength": 6,
         "triggerStrength": 8
     }, 
     "OMNECO LRG": {
@@ -441,56 +441,56 @@
         "firePattern": [
             {
                 "delayMs": 0,
-                "frequency": 40,
+                "frequency": 50,
                 "amplitude": 4
             },
             {
-                "delayMs": 60,
-                "frequency": 70,
+                "delayMs": 70,
+                "frequency": 90,
                 "amplitude": 5
             },
             {
-                "delayMs": 110,
-                "frequency": 120,
+                "delayMs": 130,
+                "frequency": 150,
                 "amplitude": 6
             },
             {
-                "delayMs": 180,
-                "frequency": 210,
-                "amplitude": 8
-            },
-            {
-                "delayMs": 220,
-                "frequency": 190,
+                "delayMs": 210,
+                "frequency": 240,
                 "amplitude": 8
             },
             {
                 "delayMs": 260,
-                "frequency": 150,
+                "frequency": 230,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 310,
+                "frequency": 200,
                 "amplitude": 7
             },
             {
-                "delayMs": 295,
-                "frequency": 180,
+                "delayMs": 360,
+                "frequency": 220,
                 "amplitude": 6
             },
             {
-                "delayMs": 330,
-                "frequency": 60,
-                "amplitude": 56
+                "delayMs": 410,
+                "frequency": 90,
+                "amplitude": 6
             },
             {
-                "delayMs": 370,
-                "frequency": 40,
+                "delayMs": 460,
+                "frequency": 60,
                 "amplitude": 5
             },
             {
-                "delayMs": 410,
+                "delayMs": 510,
                 "frequency": 0,
                 "amplitude": 0
             }
         ],
-        "fireFrequency": 190,
+        "fireFrequency": 220,
         "fireAmplitude": 7
     }, 
     "KOVAC SLEDGEHAMMER": {
@@ -503,12 +503,21 @@
         "fireFrequency": 0
     },
     "ACCRAT GOLOK DA": {
-        "endPosition": 8, 
-        "slopeEndStrength": 5, 
-        "startPosition": 2, 
-        "fireFrequency": 13, 
-        "fireAmplitude": 4, 
-        "slopeStartStrength": 4, 
+        "endPosition": 8,
+        "slopeEndStrength": 5,
+        "startPosition": 2,
+        "fireFrequency": 13,
+        "fireAmplitude": 4,
+        "slopeStartStrength": 4,
         "triggerStrength": 5
+    },
+    "KONING PR 11": {
+        "endPosition": 8,
+        "slopeEndStrength": 7,
+        "startPosition": 7,
+        "triggerStrength": 7,
+        "slopeStartStrength": 7,
+        "fireAmplitude": 8,
+        "fireFrequency": 220
     }
 }
