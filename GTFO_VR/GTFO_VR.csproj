@@ -409,6 +409,7 @@
   
   <Target Name="PostBuild" BeforeTargets="PostBuildEvent">
     <Exec Condition="'$(DisablePostBuildCopy)' != 'true' and '$(GTFO_PATH)' != ''" Command="xcopy &quot;$(TargetPath)&quot; &quot;$(GTFO_PATH)\BepInEx\plugins&quot; /E /Y" />
+    <Exec Condition="'$(DisablePostBuildCopy)' != 'true' and '$(GTFO_PATH)' != '' and Exists('$(ProjectDir)..\BepInEx\config\psvr2_haptics.json')" Command="xcopy &quot;$(ProjectDir)..\BepInEx\config\psvr2_haptics.json&quot; &quot;$(GTFO_PATH)\BepInEx\config\&quot; /Y" />
   </Target>
 
 

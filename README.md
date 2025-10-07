@@ -87,11 +87,12 @@ If you are using Wireless PCVR to play, and the weapon handling feels 'floaty' o
 #### CONFIGURATION 
 	
 	There are configurable options for:
-	-	Left handed mode 
+	-	Left handed mode
 	-	ProtubeVR haptics support
 	-	Bhaptics support
+	-	PSVR2 Adaptive Triggers support (requires PSVR2 Toolkit)
 	- 	Snap turn - Amount, smooth turn
-	-  	Radial menus - Extra text info, quickswitch weapon to last used 
+	-  	Radial menus - Extra text info, quickswitch weapon to last used
 	-	Rendering tweaks - Resolution
 	- 	Floor height offset (for seated mode and height adjustment!)
 	-	Movement vignette - Toggle, intensity
@@ -201,7 +202,18 @@ If you are using Wireless PCVR to play, and the weapon handling feels 'floaty' o
 	Support for single or double handed aiming, gun stocks
 	
 	Support for built-in controller haptics, BHaptics as well as ProtubeVR haptics
-	
+
+	**PSVR2 Adaptive Trigger Support** (requires PSVR2 Toolkit):
+	- Dynamic trigger resistance based on weapon type and weight
+	- Weapon-specific haptic profiles for 40+ weapons
+	- Progressive trigger resistance for realistic weapon feel
+	- Custom fire patterns for energy weapons (OMNECO series)
+	- Melee weapon charging feedback with heavy resistance
+	- C-Foam launcher oscillating "bubbly" haptics while charging
+	- Bio scanner high-frequency feedback during tagging
+	- Enemy detection pulses and wave completion effects
+	- Fully customizable via `psvr2_haptics.json` config file
+
 	Snap turn
 
 	Customized melee mechanics for VR

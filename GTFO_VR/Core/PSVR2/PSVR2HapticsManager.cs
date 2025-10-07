@@ -507,7 +507,6 @@ namespace GTFO_VR.Core.PSVR2
             if (isCharging && !_glueGunCharging)
             {
                 _glueGunCharging = true;
-                Log.Info($"[PSVR2Manager] C-Foam charging START - fireButton={fireButton}, pressure={pressure:F3}");
             }
 
             // Send vibration every frame while charging
@@ -533,15 +532,12 @@ namespace GTFO_VR.Core.PSVR2
                 byte vibeFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(baseFrequency), 25, 55);
 
                 ipc.TriggerEffectVibration(controllerType, GLUE_PRESSURE_VIBRATION_POSITION, vibeAmplitude, vibeFrequency);
-
-                Log.Debug($"[PSVR2Manager] C-Foam charging ACTIVE - amp={vibeAmplitude}, freq={vibeFrequency}Hz, pressure={pressure:F3}, osc={oscillation:F2}");
             }
 
             // Stop charging vibration when no longer charging
             if (_glueGunCharging && !isCharging)
             {
                 _glueGunCharging = false;
-                Log.Info($"[PSVR2Manager] C-Foam charging END - fireButton={fireButton}, pressure={pressure:F3}");
 
                 // Stop vibration by disabling trigger, then restore weapon profile
                 ipc.TriggerEffectDisable(controllerType);
