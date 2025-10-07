@@ -16,9 +16,9 @@ Try to get used to the game in Non-VR mode first before using this mod!
 
 ---
 
-## 🎮 NEW: PSVR2 Adaptive Trigger Support
+## PSVR2 Adaptive Trigger Support
 
-GTFO VR now features full **PlayStation VR2 adaptive trigger integration** for an unprecedented level of immersion! Experience every weapon with realistic trigger resistance and haptic feedback.
+GTFO VR now features full **PlayStation VR2 adaptive trigger integration** this adds support for every weapon/tool in the game to use this technology, all of them  will have special behaviors based on how they are felt.
 
 ### Key Features:
 - **40+ Weapon-Specific Profiles**: Each weapon has custom trigger resistance and recoil patterns
