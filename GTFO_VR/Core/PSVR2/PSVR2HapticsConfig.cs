@@ -30,6 +30,7 @@ namespace GTFO_VR.Core.PSVR2
     internal static class PSVR2HapticsConfig
     {
         private const string CONFIG_FILE_NAME = "psvr2_haptics.json";
+        private const string PSVR2_FOLDER_NAME = "PSVR2Haptics";
         private static readonly object _sync = new object();
         private static Dictionary<string, PSVR2WeaponProfileConfig> _profiles;
         private static bool _loaded;
@@ -48,7 +49,9 @@ namespace GTFO_VR.Core.PSVR2
                     return;
                 }
 
-                var configPath = Path.Combine(Paths.ConfigPath, CONFIG_FILE_NAME);
+                // Look for config in BepInEx/plugins/PSVR2Haptics/ folder (like protubeHaptics)
+                var pluginsPath = Path.Combine(Paths.BepInExRootPath, "plugins", PSVR2_FOLDER_NAME);
+                var configPath = Path.Combine(pluginsPath, CONFIG_FILE_NAME);
                 if (!File.Exists(configPath))
                 {
                     WriteDefaultFile(configPath);
