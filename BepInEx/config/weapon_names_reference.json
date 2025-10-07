@@ -1,0 +1,181 @@
+{
+  "weapons": {
+    "pistols": [
+      {
+        "displayName": "Shelling S49 Pistol",
+        "inGameName": "SHELLING S49"
+      },
+      {
+        "displayName": "Shelling Nano Burst Pistol",
+        "inGameName": "SHELLING NANO"
+      },
+      {
+        "displayName": "Bataldo Model 8 HEL Revolver",
+        "inGameName": "BATALDO 3RB"
+      },
+      {
+        "displayName": "Raptus Treffen 2 Machine Pistol",
+        "inGameName": "RAPTUS TREFFEN 2"
+      },
+      {
+        "displayName": "Raptus Steigro",
+        "inGameName": "RAPTUS STEIGRO"
+      },
+      {
+        "displayName": "Shelling Arid High Caliber Pistol",
+        "inGameName": "SHELLING ARID 5"
+      },
+      {
+        "displayName": "Mastaba R66 Revolver",
+        "inGameName": "MASTABA R66"
+      }
+    ],
+    "rifles": [
+      {
+        "displayName": "Accrat Golok DA Bullpup Rifle",
+        "inGameName": "ACCRAT GOLOK DA"
+      },
+      {
+        "displayName": "TR22 Hanaway DMR",
+        "inGameName": "TR22 HANAWAY"
+      },
+      {
+        "displayName": "Hanaway PSB Double Tap Rifle",
+        "inGameName": "HANAWAY PSB"
+      },
+      {
+        "displayName": "Malatack LX Assault Rifle",
+        "inGameName": "MALATACK LX"
+      },
+      {
+        "displayName": "Malatack CH 4 Burst Rifle",
+        "inGameName": "MALATACK CH 4"
+      },
+      {
+        "displayName": "Drekker Pres MOD 556 Rifle",
+        "inGameName": "DREKKER PRES MOD 556"
+      },
+      {
+        "displayName": "Malatack HXC Heavy Assault Rifle",
+        "inGameName": "MALATACK HXC"
+      },
+      {
+        "displayName": "Drekker CLR Short Rifle",
+        "inGameName": "DREKKER CLR"
+      },
+      {
+        "displayName": "Drekker Del P1 Precision Rifle",
+        "inGameName": "DREKKER DEL P1"
+      },
+      {
+        "displayName": "Köning PR 11 Sniper",
+        "inGameName": "KONING PR 11"
+      },
+      {
+        "displayName": "Omneco LRG HEL Rifle",
+        "inGameName": "OMNECO LRG"
+      }
+    ],
+    "smgs": [
+      {
+        "displayName": "Van Auken LTC 5 SMG",
+        "inGameName": "VAN AUKEN LTC5"
+      },
+      {
+        "displayName": "Accrat STB PDW",
+        "inGameName": "ACCRAT STB"
+      },
+      {
+        "displayName": "Accrat ND6 Heavy SMG",
+        "inGameName": "ACCRAT ND6"
+      },
+      {
+        "displayName": "Van Auken CAB F4 Carbine",
+        "inGameName": "VAN AUKEN CAB F4"
+      }
+    ],
+    "shotguns": [
+      {
+        "displayName": "Buckland SBS III Sawed-Off Shotgun",
+        "inGameName": "BUCKLAND SBS III"
+      },
+      {
+        "displayName": "Bataldo J 300 Hel Shotgun",
+        "inGameName": "BATALDO J 300"
+      },
+      {
+        "displayName": "Bataldo Custom K33 Slug Shotgun",
+        "inGameName": "BATALDO CUSTOM K330"
+      },
+      {
+        "displayName": "Buckland S870 Shotgun",
+        "inGameName": "BUCKLAND S870"
+      },
+      {
+        "displayName": "Buckland AF6 Combat Shotgun",
+        "inGameName": "BUCKLAND AF6"
+      },
+      {
+        "displayName": "Drekker INEX Drei Scattergun",
+        "inGameName": "DREKKER INEX DREI"
+      },
+      {
+        "displayName": "Buckland XDIST2 Choke Mod Shotgun",
+        "inGameName": "BUCKLAND XDIST2"
+      }
+    ],
+    "machineguns": [
+      {
+        "displayName": "Techman Arbalist V Machine Gun",
+        "inGameName": "TECHMAN ARBALIST V"
+      },
+      {
+        "displayName": "Techman Veruta XII Machine Gun",
+        "inGameName": "TECHMAN VERUTA XII"
+      },
+      {
+        "displayName": "Techman Klust 6 Burst Cannon",
+        "inGameName": "TECHMAN KLAUST 6"
+      }
+    ],
+    "special": [
+      {
+        "displayName": "Omneco EXP1 HEL Gun",
+        "inGameName": "OMNECO EXP1"
+      }
+    ],
+    "melee": [
+      {
+        "displayName": "Santonian Mallet",
+        "inGameName": "SANTONIAN MALLET"
+      },
+      {
+        "displayName": "Santonian HDH",
+        "inGameName": "SANTONIAN HDH"
+      },
+      {
+        "displayName": "MACO Gavel",
+        "inGameName": "MACO GAVEL"
+      },
+      {
+        "displayName": "Omneco Maul",
+        "inGameName": "OMNECO MAUL"
+      },
+      {
+        "displayName": "Kovac Sledgehammer",
+        "inGameName": "KOVAC SLEDGEHAMMER"
+      }
+    ],
+    "tools": [
+      {
+        "displayName": "Stalwart Flow G2 C-Foam Launcher",
+        "inGameName": "STALWART FLOW G2"
+      }
+    ]
+  },
+  "notes": {
+    "format": "The 'inGameName' field matches the key used in psvr2_haptics.json config file",
+    "source": "Weapon names from GTFO game data and community spreadsheet",
+    "lastUpdated": "2025-10-02"
+  }
+}

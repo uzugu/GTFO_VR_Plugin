@@ -3,7 +3,7 @@
         "endPosition": 8,
         "slopeEndStrength": 8,
         "startPosition": 2,
-        "fireFrequency": 2,
+        "fireFrequency": 80,
         "fireAmplitude": 8,
         "slopeStartStrength": 6,
         "triggerStrength": 8
@@ -93,10 +93,10 @@
     "BUCKLAND XDIST2": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 6,
-        "fireFrequency": 14,
+        "startPosition": 2,
+        "fireFrequency": 90,
         "fireAmplitude": 8,
-        "slopeStartStrength": 6,
+        "slopeStartStrength": 7,
         "triggerStrength": 8
     }, 
     "TECHMAN ARBALIST V": {
@@ -165,20 +165,62 @@
     "DREKKER INEX DREI": {
         "endPosition": 8,
         "slopeEndStrength": 8,
-        "startPosition": 2,
-        "fireFrequency": 1,
-        "fireAmplitude": 8,
-        "slopeStartStrength": 3,
-        "triggerStrength": 8
+        "startPosition": 1,
+        "triggerStrength": 8,
+        "slopeStartStrength": 8,
+        "firePattern": [
+            {
+                "delayMs": 0,
+                "frequency": 30,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 50,
+                "frequency": 40,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 100,
+                "frequency": 50,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 150,
+                "frequency": 45,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 200,
+                "frequency": 35,
+                "amplitude": 7
+            },
+            {
+                "delayMs": 260,
+                "frequency": 25,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 330,
+                "frequency": 20,
+                "amplitude": 4
+            },
+            {
+                "delayMs": 410,
+                "frequency": 0,
+                "amplitude": 0
+            }
+        ],
+        "fireFrequency": 50,
+        "fireAmplitude": 8
     }, 
     "BATALDO J 300": {
-        "endPosition": 8, 
-        "slopeEndStrength": 7, 
-        "startPosition": 2, 
-        "fireFrequency": 3, 
-        "fireAmplitude": 6, 
-        "slopeStartStrength": 5, 
-        "triggerStrength": 7
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "fireFrequency": 65,
+        "fireAmplitude": 8,
+        "slopeStartStrength": 6,
+        "triggerStrength": 8
     }, 
     "HANAWAY PSB": {
         "endPosition": 8,
@@ -202,7 +244,7 @@
         "endPosition": 8,
         "slopeEndStrength": 8,
         "startPosition": 2,
-        "fireFrequency": 1,
+        "fireFrequency": 60,
         "fireAmplitude": 8,
         "slopeStartStrength": 6,
         "triggerStrength": 8
@@ -289,13 +331,13 @@
         "triggerStrength": 7
     }, 
     "DREKKER PRES MOD 556": {
-        "endPosition": 8,
+        "endPosition": 2,
         "slopeEndStrength": 8,
-        "startPosition": 8,
-        "fireFrequency": 5,
-        "fireAmplitude": 7,
+        "startPosition": 1,
+        "fireFrequency": 100,
+        "fireAmplitude": 6,
         "slopeStartStrength": 8,
-        "triggerStrength": 6
+        "triggerStrength": 7
     }, 
     "BATALDO CUSTOM K330": {
         "endPosition": 8,
@@ -341,24 +383,108 @@
         "fireAmplitude": 8,
         "slopeStartStrength": 8,
         "triggerStrength": 8
-    }, 
-    "STALWART FLOW G2": {
-        "endPosition": 8, 
-        "slopeEndStrength": 6, 
-        "startPosition": 2, 
-        "fireFrequency": 76, 
-        "fireAmplitude": 4, 
-        "slopeStartStrength": 5, 
-        "triggerStrength": 6
-    }, 
+    },
     "BATALDO 3RB": {
         "endPosition": 8,
         "slopeEndStrength": 8,
         "startPosition": 6,
-        "fireFrequency": 4,
-        "fireAmplitude": 8,
+        "triggerStrength": 8,
         "slopeStartStrength": 8,
-        "triggerStrength": 8
+        "firePattern": [
+            {
+                "delayMs": 0,
+                "frequency": 40,
+                "amplitude": 4
+            },
+            {
+                "delayMs": 50,
+                "frequency": 70,
+                "amplitude": 5
+            },
+            {
+                "delayMs": 90,
+                "frequency": 120,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 150,
+                "frequency": 180,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 190,
+                "frequency": 170,
+                "amplitude": 7
+            },
+            {
+                "delayMs": 230,
+                "frequency": 140,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 270,
+                "frequency": 50,
+                "amplitude": 4
+            },
+            {
+                "delayMs": 320,
+                "frequency": 0,
+                "amplitude": 0
+            }
+        ],
+        "fireFrequency": 150,
+        "fireAmplitude": 7
+    },
+    "HEL REVOLVER": {
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 6,
+        "triggerStrength": 8,
+        "slopeStartStrength": 8,
+        "firePattern": [
+            {
+                "delayMs": 0,
+                "frequency": 40,
+                "amplitude": 4
+            },
+            {
+                "delayMs": 50,
+                "frequency": 70,
+                "amplitude": 5
+            },
+            {
+                "delayMs": 90,
+                "frequency": 120,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 150,
+                "frequency": 180,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 190,
+                "frequency": 170,
+                "amplitude": 7
+            },
+            {
+                "delayMs": 230,
+                "frequency": 140,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 270,
+                "frequency": 50,
+                "amplitude": 4
+            },
+            {
+                "delayMs": 320,
+                "frequency": 0,
+                "amplitude": 0
+            }
+        ],
+        "fireFrequency": 150,
+        "fireAmplitude": 7
     }, 
     "MALATACK HXC": {
         "endPosition": 8,
@@ -427,8 +553,8 @@
         "endPosition": 8,
         "slopeEndStrength": 8,
         "startPosition": 2,
-        "fireFrequency": 3,
-        "fireAmplitude": 7,
+        "fireFrequency": 70,
+        "fireAmplitude": 8,
         "slopeStartStrength": 6,
         "triggerStrength": 8
     }, 
@@ -513,11 +639,155 @@
     },
     "KONING PR 11": {
         "endPosition": 8,
-        "slopeEndStrength": 7,
-        "startPosition": 7,
-        "triggerStrength": 7,
-        "slopeStartStrength": 7,
-        "fireAmplitude": 8,
-        "fireFrequency": 220
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "triggerStrength": 8,
+        "slopeStartStrength": 3,
+        "firePattern": [
+            {
+                "delayMs": 0,
+                "frequency": 250,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 30,
+                "frequency": 255,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 60,
+                "frequency": 240,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 100,
+                "frequency": 220,
+                "amplitude": 7
+            },
+            {
+                "delayMs": 150,
+                "frequency": 180,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 200,
+                "frequency": 120,
+                "amplitude": 5
+            },
+            {
+                "delayMs": 260,
+                "frequency": 60,
+                "amplitude": 3
+            },
+            {
+                "delayMs": 320,
+                "frequency": 0,
+                "amplitude": 0
+            }
+        ],
+        "fireFrequency": 250,
+        "fireAmplitude": 8
+    },
+    "KÖNING PR 11": {
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "triggerStrength": 8,
+        "slopeStartStrength": 3,
+        "firePattern": [
+            {
+                "delayMs": 0,
+                "frequency": 250,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 30,
+                "frequency": 255,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 60,
+                "frequency": 240,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 100,
+                "frequency": 220,
+                "amplitude": 7
+            },
+            {
+                "delayMs": 150,
+                "frequency": 180,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 200,
+                "frequency": 120,
+                "amplitude": 5
+            },
+            {
+                "delayMs": 260,
+                "frequency": 60,
+                "amplitude": 3
+            },
+            {
+                "delayMs": 320,
+                "frequency": 0,
+                "amplitude": 0
+            }
+        ],
+        "fireFrequency": 250,
+        "fireAmplitude": 8
+    },
+    "SNIPER": {
+        "endPosition": 8,
+        "slopeEndStrength": 8,
+        "startPosition": 2,
+        "triggerStrength": 8,
+        "slopeStartStrength": 3,
+        "firePattern": [
+            {
+                "delayMs": 0,
+                "frequency": 250,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 30,
+                "frequency": 255,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 60,
+                "frequency": 240,
+                "amplitude": 8
+            },
+            {
+                "delayMs": 100,
+                "frequency": 220,
+                "amplitude": 7
+            },
+            {
+                "delayMs": 150,
+                "frequency": 180,
+                "amplitude": 6
+            },
+            {
+                "delayMs": 200,
+                "frequency": 120,
+                "amplitude": 5
+            },
+            {
+                "delayMs": 260,
+                "frequency": 60,
+                "amplitude": 3
+            },
+            {
+                "delayMs": 320,
+                "frequency": 0,
+                "amplitude": 0
+            }
+        ],
+        "fireFrequency": 250,
+        "fireAmplitude": 8
     }
 }

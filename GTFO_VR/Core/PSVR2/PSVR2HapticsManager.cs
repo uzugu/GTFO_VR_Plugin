@@ -30,6 +30,15 @@ namespace GTFO_VR.Core.PSVR2
         private const byte FIRE_VIBRATION_POSITION = 3;
         private const byte DEFAULT_FIRE_FREQUENCY = 160;
 
+        private const float GLUE_PRESSURE_START_THRESHOLD = 0.05f;
+        private const float GLUE_PRESSURE_STOP_THRESHOLD = 0.99f;
+        private const float GLUE_PRESSURE_RELEASE_THRESHOLD = 0.02f;
+        private const byte GLUE_PRESSURE_START_POSITION = 2;
+        private const byte GLUE_PRESSURE_END_POSITION = 8;
+        private const byte GLUE_PRESSURE_SLOPE_START = 4;
+        private const byte GLUE_PRESSURE_VIBRATION_POSITION = 3;
+        private const float GLUE_PRESSURE_VIBE_INTERVAL = 0.05f;
+
         private static PSVR2WeaponProfile _currentProfile = new PSVR2WeaponProfile
         {
             WeaponName = "DEFAULT",
@@ -77,6 +86,7 @@ namespace GTFO_VR.Core.PSVR2
                 ipc.TriggerEffectDisable(offHandController);
             }
         }
+
 
         internal static void Initialize()
         {
@@ -245,9 +255,13 @@ namespace GTFO_VR.Core.PSVR2
                 return;
             }
 
+            // Reset C-Foam charging state when switching weapons
+            _glueGunCharging = false;
+
             _currentProfile = BuildWeaponProfile(item);
 
-            Log.Debug($"PSVR2 apply weapon profile: item={item?.PublicName ?? "(unknown)"}, strength={_currentProfile.TriggerStrength}");
+            bool hasCustomProfile = item != null && PSVR2HapticsConfig.HasProfile(item.PublicName);
+            Log.Info($"PSVR2 weapon equipped: '{item?.PublicName ?? "(unknown)"}' | HasCustomProfile={hasCustomProfile} | Strength={_currentProfile.TriggerStrength} | StartPos={_currentProfile.StartPosition} | Freq={_currentProfile.FireFrequency}");
 
             var ipc = IpcClient.Instance();
             var mainController = GetMainControllerType();
@@ -259,6 +273,12 @@ namespace GTFO_VR.Core.PSVR2
         internal static void TriggerWeaponFire(float normalizedIntensity, bool aimingTwoHanded)
         {
             if (!EnsureReady())
+            {
+                return;
+            }
+
+            // Skip weapon fire haptics if C-Foam charging is active (to preserve 40Hz charging vibration)
+            if (_glueGunCharging)
             {
                 return;
             }
@@ -467,51 +487,67 @@ namespace GTFO_VR.Core.PSVR2
             }
         }
 
-        private static float _lastGluePressure = -1f;
+        private static bool _glueGunCharging;
 
-        internal static void TriggerGlueGunPressure(float pressure)
+        internal static void HandleGlueGunUpdate(float pressure, bool fireButton, bool recharging, bool firing)
         {
             if (!EnsureReady())
             {
                 return;
             }
 
-            // Only update if pressure changed significantly (avoid spamming commands every frame)
-            if (Mathf.Abs(pressure - _lastGluePressure) < 0.05f && pressure < 0.99f)
-            {
-                return;
-            }
-            _lastGluePressure = pressure;
-
             var controllerType = GetMainControllerType();
             var ipc = IpcClient.Instance();
 
-            // C-Foam launcher: Progressive resistance + vibration during charging
-            if (pressure > 0.05f)
-            {
-                // Progressive resistance (feels like building pressure)
-                byte pressureStrength = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(3, 7, pressure)), 3, 7);
-                ipc.TriggerEffectWeapon(controllerType, 2, 8, pressureStrength);
+            // Charging is when: button held + not recharging + not firing + pressure > 0
+            // This matches the game logic: m_fireButtonDown && !m_reCharging && !m_firing && hasAmmo
+            bool isCharging = fireButton && !recharging && !firing && pressure > 0.01f;
 
-                // Continuous vibration at trigger position
-                byte vibeAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(5, 8, pressure)), 5, MAX_STRENGTH);
-                byte vibeFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(60, 120, pressure)), 60, 255);
-                ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, vibeAmplitude, vibeFrequency);
-            }
-            else
+            // Start charging vibration
+            if (isCharging && !_glueGunCharging)
             {
-                // Reset when not charging
+                _glueGunCharging = true;
+                Log.Info($"[PSVR2Manager] C-Foam charging START - fireButton={fireButton}, pressure={pressure:F3}");
+            }
+
+            // Send vibration every frame while charging
+            if (_glueGunCharging && isCharging)
+            {
+                // Disable trigger effects so vibration can be felt
                 ipc.TriggerEffectDisable(controllerType);
-                _lastGluePressure = -1f;
+                DisableOffHandTrigger(ipc);
+
+                // Base amplitude/frequency that increases with pressure
+                float baseAmplitude = Mathf.Lerp(3, 8, pressure);
+                float baseFrequency = Mathf.Lerp(25, 55, pressure);
+
+                // Oscillate amplitude to create bubbly pulsing effect (faster oscillation = more bubbly)
+                // Use a sine wave that speeds up with pressure for more chaotic bubbling at high pressure
+                float oscillationSpeed = Mathf.Lerp(8f, 15f, pressure); // 8-15 oscillations per second
+                float oscillation = Mathf.Sin(Time.time * oscillationSpeed * Mathf.PI * 2f);
+
+                // Modulate amplitude by ±30% based on oscillation
+                float modulatedAmplitude = baseAmplitude * (1f + oscillation * 0.3f);
+
+                byte vibeAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(modulatedAmplitude), 2, 8);
+                byte vibeFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(baseFrequency), 25, 55);
+
+                ipc.TriggerEffectVibration(controllerType, GLUE_PRESSURE_VIBRATION_POSITION, vibeAmplitude, vibeFrequency);
+
+                Log.Debug($"[PSVR2Manager] C-Foam charging ACTIVE - amp={vibeAmplitude}, freq={vibeFrequency}Hz, pressure={pressure:F3}, osc={oscillation:F2}");
             }
 
-            // Strong pulse when fully charged
-            if (pressure >= 0.99f)
+            // Stop charging vibration when no longer charging
+            if (_glueGunCharging && !isCharging)
             {
-                ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, 8, 180);
+                _glueGunCharging = false;
+                Log.Info($"[PSVR2Manager] C-Foam charging END - fireButton={fireButton}, pressure={pressure:F3}");
+
+                // Stop vibration by disabling trigger, then restore weapon profile
+                ipc.TriggerEffectDisable(controllerType);
+                SendCurrentTriggerProfile();
             }
         }
-
         internal static void TriggerBioScannerCharge(float tagProgress)
         {
             if (!EnsureReady())
@@ -647,3 +683,11 @@ namespace GTFO_VR.Core.PSVR2
         }
     }
 }
+
+
+
+
+
+
+
+
