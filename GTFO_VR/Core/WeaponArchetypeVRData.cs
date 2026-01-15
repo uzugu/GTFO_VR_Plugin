@@ -1,8 +1,10 @@
-﻿using GTFO_VR.Events;
+﻿using BepInEx.Unity.IL2CPP.UnityEngine;
+using GTFO_VR.Events;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace GTFO_VR.Core
@@ -164,6 +166,46 @@ namespace GTFO_VR.Core
                 {
                     VRWeaponData currentData = new VRWeaponData(Vector3.zero, Quaternion.identity, false);
                     currentData.allowsDoubleHanded = muzzleDistance > 0.25f;
+                    weaponDataByPublicName.Add(item.PublicName.ToUpper(), currentData);
+                    m_current = currentData;
+                    Log.Debug($"Item {item.ArchetypeName} - MuzzleDistance {muzzleDistance} - Allows DH? {currentData.allowsDoubleHanded}");
+                }
+                else if (item.ItemDataBlock.inventorySlot.Equals(Player.InventorySlot.GearMelee))
+                {
+                    VRWeaponData currentData = weaponDataByPublicName["Default"];
+
+                    // Some modded? weapons include html tags in the archtype name
+                    string sanitizedArchtype = Regex.Replace(item.ArchetypeName, "<.*?>", string.Empty);
+
+                    Debug.Log($"Sanitized archname: {sanitizedArchtype}");
+
+                    switch (sanitizedArchtype)
+                    {
+                        case "Sledgehammer":
+                            {
+                                weaponDataByPublicName.TryGetValue("SANTONIAN HDH", out currentData);
+                                break;
+                            }
+
+                        case "Knife":
+                            {
+                                weaponDataByPublicName.TryGetValue("MASTABA FIXED BLADE", out currentData);
+                                break;
+                            }
+
+                        case "Bat":
+                            {
+                                weaponDataByPublicName.TryGetValue("KOVAC PEACEKEEPER", out currentData);
+                                break;
+                            }
+
+                        case "Spear":
+                            {
+                                weaponDataByPublicName.TryGetValue("MACO DRILLHEAD", out currentData);
+                                break;
+                            }
+                    }
+
                     weaponDataByPublicName.Add(item.PublicName.ToUpper(), currentData);
                     m_current = currentData;
                     Log.Debug($"Item {item.ArchetypeName} - MuzzleDistance {muzzleDistance} - Allows DH? {currentData.allowsDoubleHanded}");
