@@ -857,7 +857,7 @@
         "fireAmplitude": 5,
         "fireFrequency": 180
     },
-    "BEAM RIFLE BLITZ": {
+    "BLITZ BEAM RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 5,
@@ -866,7 +866,7 @@
         "fireAmplitude": 4,
         "fireFrequency": 160
     },
-    "BEAM RIFLE VOID": {
+    "VOID BEAM RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 6,
@@ -875,7 +875,7 @@
         "fireAmplitude": 5,
         "fireFrequency": 180
     },
-    "BEAM RIFLE PURE": {
+    "PURE BEAM RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 7,
@@ -893,7 +893,7 @@
         "fireAmplitude": 5,
         "fireFrequency": 120
     },
-    "CARBINE PURE": {
+    "PURE CARBINE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 6,
@@ -911,7 +911,7 @@
         "fireAmplitude": 4,
         "fireFrequency": 200
     },
-    "NANO SMG PURE": {
+    "PURE NANO SMG": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 5,
@@ -929,7 +929,7 @@
         "fireAmplitude": 7,
         "fireFrequency": 80
     },
-    "SPLIT RIFLE PURE": {
+    "PURE SPLIT RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 8,
@@ -947,7 +947,7 @@
         "fireAmplitude": 7,
         "fireFrequency": 50
     },
-    "KILL-FEED PISTOL VOID": {
+    "VOID KILL-FEED PISTOL": {
         "startPosition": 4,
         "endPosition": 8,
         "triggerStrength": 7,
@@ -956,7 +956,7 @@
         "fireAmplitude": 7,
         "fireFrequency": 60
     },
-    "KILL-FEED PISTOL PURE": {
+    "PURE KILL-FEED PISTOL": {
         "startPosition": 4,
         "endPosition": 8,
         "triggerStrength": 8,
@@ -974,7 +974,7 @@
         "fireAmplitude": 5,
         "fireFrequency": 150
     },
-    "SHRAPNEL SMG BLITZ": {
+    "BLITZ SHRAPNEL SMG": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 5,
@@ -983,7 +983,7 @@
         "fireAmplitude": 5,
         "fireFrequency": 150
     },
-    "SHRAPNEL SMG VOID": {
+    "VOID SHRAPNEL SMG": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 6,
@@ -992,7 +992,7 @@
         "fireAmplitude": 6,
         "fireFrequency": 160
     },
-    "SHRAPNEL SMG PURE": {
+    "PURE SHRAPNEL SMG": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 6,
@@ -1010,7 +1010,7 @@
         "fireAmplitude": 8,
         "fireFrequency": 50
     },
-    "CRESCENDO SHOTGUN BLITZ": {
+    "BLITZ CRESCENDO SHOTGUN": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 7,
@@ -1019,7 +1019,7 @@
         "fireAmplitude": 7,
         "fireFrequency": 45
     },
-    "CRESCENDO SHOTGUN VOID": {
+    "VOID CRESCENDO SHOTGUN": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 8,
@@ -1028,7 +1028,7 @@
         "fireAmplitude": 8,
         "fireFrequency": 50
     },
-    "CRESCENDO SHOTGUN PURE": {
+    "PURE CRESCENDO SHOTGUN": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 8,
@@ -1046,7 +1046,7 @@
         "fireAmplitude": 8,
         "fireFrequency": 40
     },
-    "PRECISION RIFLE PURE": {
+    "PURE PRECISION RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 8,
@@ -1064,7 +1064,7 @@
         "fireAmplitude": 6,
         "fireFrequency": 100
     },
-    "RAY GUN BLITZ": {
+    "BLITZ RAY GUN": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 5,
@@ -1073,7 +1073,7 @@
         "fireAmplitude": 5,
         "fireFrequency": 90
     },
-    "RAY GUN VOID": {
+    "VOID RAY GUN": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 6,
@@ -1100,7 +1100,7 @@
         "fireAmplitude": 8,
         "fireFrequency": 30
     },
-    "VIRUS SNIPER BLITZ": {
+    "BLITZ VIRUS SNIPER": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 7,
@@ -1109,7 +1109,7 @@
         "fireAmplitude": 7,
         "fireFrequency": 25
     },
-    "VIRUS SNIPER VOID": {
+    "VOID VIRUS SNIPER": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 8,
@@ -1127,6 +1127,42 @@
         "fireAmplitude": 8,
         "fireFrequency": 40
     },
+    "RAID LMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 6,
+        "slopeStartStrength": 4,
+        "slopeEndStrength": 6,
+        "fireAmplitude": 6,
+        "fireFrequency": 140
+    },
+    "BLITZ RAID LMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 5,
+        "slopeStartStrength": 3,
+        "slopeEndStrength": 5,
+        "fireAmplitude": 5,
+        "fireFrequency": 120
+    },
+    "VOID RAID LMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 6,
+        "slopeStartStrength": 4,
+        "slopeEndStrength": 6,
+        "fireAmplitude": 6,
+        "fireFrequency": 140
+    },
+    "PURE RAID LMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 7,
+        "slopeStartStrength": 5,
+        "slopeEndStrength": 7,
+        "fireAmplitude": 7,
+        "fireFrequency": 160
+    },
     "_comment_fe3_melee": "FE3 Melee Weapons",
     "RAPIER": {
         "startPosition": 1,
@@ -1137,7 +1173,7 @@
         "fireAmplitude": 0,
         "fireFrequency": 0
     },
-    "RAPIER PURE": {
+    "PURE RAPIER": {
         "startPosition": 1,
         "endPosition": 8,
         "triggerStrength": 7,
@@ -1146,12 +1182,39 @@
         "fireAmplitude": 0,
         "fireFrequency": 0
     },
-    "KNIFE PURE": {
+    "PURE KNIFE": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 5,
         "slopeStartStrength": 4,
         "slopeEndStrength": 5,
+        "fireAmplitude": 0,
+        "fireFrequency": 0
+    },
+    "BLITZ CUDGEL": {
+        "startPosition": 1,
+        "endPosition": 8,
+        "triggerStrength": 8,
+        "slopeStartStrength": 6,
+        "slopeEndStrength": 8,
+        "fireAmplitude": 0,
+        "fireFrequency": 0
+    },
+    "VOID CUDGEL": {
+        "startPosition": 1,
+        "endPosition": 8,
+        "triggerStrength": 8,
+        "slopeStartStrength": 6,
+        "slopeEndStrength": 8,
+        "fireAmplitude": 0,
+        "fireFrequency": 0
+    },
+    "PURE CUDGEL": {
+        "startPosition": 1,
+        "endPosition": 8,
+        "triggerStrength": 8,
+        "slopeStartStrength": 6,
+        "slopeEndStrength": 8,
         "fireAmplitude": 0,
         "fireFrequency": 0
     }
