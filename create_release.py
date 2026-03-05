@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 
 
 dependency_targets = ["Newtonsoft.Json.dll", "bhaptics_library.dll", "openvr_api.dll", "Bhaptics.Tact.dll", "SteamVR_Standalone_IL2CPP.dll", "ForceTubeVR_API_x64.dll", "ShockWaveIMU.dll", "ShockwaveManager.dll"]
-dependency_dir_targets = ["protubeHaptics"]
+dependency_dir_targets = ["protubeHaptics", "PSVR2Haptics"]
 plugin_targets = ["GTFO_VR.dll"]
 
 gtfo_data_plugin_targets = ["openvr_api.dll"]
