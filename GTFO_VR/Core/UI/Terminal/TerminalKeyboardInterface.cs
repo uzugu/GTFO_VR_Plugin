@@ -555,7 +555,7 @@ namespace GTFO_VR.Core.UI.Terminal
                     keyboardRow.AddChild(new KeyDefinition("j").SetKeycode(KeyCode.J));
                     keyboardRow.AddChild(new KeyDefinition("k").SetKeycode(KeyCode.K));
                     keyboardRow.AddChild(new KeyDefinition("l").SetKeycode(KeyCode.L));
-                    keyboardRow.AddChild(new KeyDefinition("-"));
+                    keyboardRow.AddChild(new KeyDefinition("_"));
                     keyboardRow.AddChild(new KeyDefinition(KeyType.ENTER, "", new LayoutParameters(LayoutParameters.FILL_PARENT, 1, 0.01f))
                         .SetApperance(KeyApperanceType.GONE));
 
@@ -566,8 +566,9 @@ namespace GTFO_VR.Core.UI.Terminal
                 {
                     LinearLayout keyboardRow = new LinearLayout(LinearOrientation.HORIZONTAL, TextAnchor.UpperLeft, rowParams);
 
-                    keyboardRow.AddChild(new KeyDefinition(KeyType.EMPTY, "", 2.4f)
+                    keyboardRow.AddChild(new KeyDefinition(KeyType.EMPTY, "", 1.3f)
                         .SetApperance(KeyApperanceType.ALT));
+                    keyboardRow.AddChild(new KeyDefinition("-"));
                     keyboardRow.AddChild(new KeyDefinition("z").SetKeycode(KeyCode.Z));
                     keyboardRow.AddChild(new KeyDefinition("x").SetKeycode(KeyCode.X));
                     keyboardRow.AddChild(new KeyDefinition("c").SetKeycode(KeyCode.C));
@@ -576,7 +577,7 @@ namespace GTFO_VR.Core.UI.Terminal
                     keyboardRow.AddChild(new KeyDefinition("n").SetKeycode(KeyCode.N));
                     keyboardRow.AddChild(new KeyDefinition("m").SetKeycode(KeyCode.M));
                     keyboardRow.AddChild(new KeyDefinition("."));
-                    keyboardRow.AddChild(new KeyDefinition("_"));
+                    keyboardRow.AddChild(new KeyDefinition(":"));
                     keyboardRow.AddChild(new KeyDefinition(KeyType.UP, "^", 1.1f)
                         .SetRepeatKey(true)
                         .SetKeycode(KeyCode.UpArrow)

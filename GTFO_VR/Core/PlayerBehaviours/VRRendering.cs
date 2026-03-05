@@ -87,7 +87,8 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
             FixHeadAttachedFlashlightPos(eye);
 
-            m_fpsCamera.m_cullingCamera.RunVisibilityOnPreCull();
+            if (renderingFirstEye())
+                m_fpsCamera.m_cullingCamera.RunVisibilityOnPreCull();
 
             m_fpsCamera.m_preRenderCmds.Clear();
             m_fpsCamera.m_beforeForwardAlpahCmds.Clear();

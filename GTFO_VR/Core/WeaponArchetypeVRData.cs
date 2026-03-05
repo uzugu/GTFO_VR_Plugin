@@ -138,6 +138,8 @@ namespace GTFO_VR.Core
                 { "GEARMAK GL2 ROYAL", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
                 { "CULTIST ZA4-CONDEMN", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
 
+                // FE3
+                { "BLITZ RAPIER", new VRWeaponData(new Vector3(0f, 0.28f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
 
             };
 
@@ -182,12 +184,14 @@ namespace GTFO_VR.Core
                     switch (sanitizedArchtype)
                     {
                         case "Sledgehammer":
+                        case "Reinforced Cudgel":
                             {
                                 weaponDataByPublicName.TryGetValue("SANTONIAN HDH", out currentData);
                                 break;
                             }
 
                         case "Knife":
+                        case "Assassin Knife":
                             {
                                 weaponDataByPublicName.TryGetValue("MASTABA FIXED BLADE", out currentData);
                                 break;
@@ -200,10 +204,16 @@ namespace GTFO_VR.Core
                             }
 
                         case "Spear":
+                        case "Combat Spear":
                             {
                                 weaponDataByPublicName.TryGetValue("MACO DRILLHEAD", out currentData);
                                 break;
                             }
+                        case "Honed Rapier":
+                        {
+                            weaponDataByPublicName.TryGetValue("BLITZ RAPIER", out currentData);
+                            break;
+                        }
                     }
 
                     weaponDataByPublicName.Add(item.PublicName.ToUpper(), currentData);
