@@ -1,4 +1,5 @@
-﻿using GTFO_VR.Core.UI.Terminal.Pointer;
+﻿using GTFO_VR.Core.PlayerBehaviours;
+using GTFO_VR.Core.UI.Terminal.Pointer;
 using GTFO_VR.Events;
 using System;
 using UnityEngine;
@@ -33,6 +34,10 @@ namespace GTFO_VR.Core.VR_Input
 
         public static bool AimingTwoHanded;
 
+        private static FirstPersonItemHolder m_forcedAimItemHolder;
+
+        private static bool m_forcedAimTriggerWasAlreadySet;
+
         private float m_doubleHandStartDistance = .1f;
 
         private float m_doubleHandLeaveDistance = .55f;
@@ -61,6 +66,7 @@ namespace GTFO_VR.Core.VR_Input
             {
                 HandleDoubleHandedChecks();
             }
+            UpdateForceAimTriggerState();
         }
 
         private void SetMainController()
@@ -129,6 +135,52 @@ namespace GTFO_VR.Core.VR_Input
         public static bool IsFiringFromADS()
         {
             return !VRConfig.configUseTwoHanded.Value || (AimingTwoHanded || !GetVRWeaponData().allowsDoubleHanded) || !VRConfig.configUseControllers.Value;
+        }
+
+        private static void UpdateForceAimTriggerState()
+        {
+            FirstPersonItemHolder itemHolder = VRPlayer.PlayerAgent?.FPItemHolder;
+            if (!ShouldForceAimTrigger(itemHolder))
+            {
+                ReleaseForceAimTrigger();
+                return;
+            }
+
+            if (m_forcedAimItemHolder != itemHolder)
+            {
+                ReleaseForceAimTrigger();
+                m_forcedAimItemHolder = itemHolder;
+                m_forcedAimTriggerWasAlreadySet = itemHolder.ForceAimTrigger;
+            }
+
+            m_forcedAimItemHolder.ForceAimTrigger = true;
+        }
+
+        private static bool ShouldForceAimTrigger(FirstPersonItemHolder itemHolder)
+        {
+            if (FocusStateEvents.currentState != eFocusState.FPS || !VRConfig.configUseControllers.Value || !AimingTwoHanded)
+            {
+                return false;
+            }
+
+            ItemEquippable wieldedItem = itemHolder?.WieldedItem;
+            if (wieldedItem == null || wieldedItem.ItemFPSData == null)
+            {
+                return false;
+            }
+
+            return ItemEquippableEvents.IsItemShootableWeapon(wieldedItem) && wieldedItem.ItemFPSData.canAim && wieldedItem.AimingAllowed;
+        }
+
+        private static void ReleaseForceAimTrigger()
+        {
+            if (m_forcedAimItemHolder != null && !m_forcedAimTriggerWasAlreadySet)
+            {
+                m_forcedAimItemHolder.ForceAimTrigger = false;
+            }
+
+            m_forcedAimItemHolder = null;
+            m_forcedAimTriggerWasAlreadySet = false;
         }
 
         private GameObject SetupController(SteamVR_Input_Sources source)
@@ -421,6 +473,7 @@ namespace GTFO_VR.Core.VR_Input
 
         private void OnDestroy()
         {
+            ReleaseForceAimTrigger();
             VRConfig.configUseLeftHand.SettingChanged -= HandednessSwitch;
             VRConfig.configWeaponRotationOffset.SettingChanged -= TiltChanged;
             ItemEquippableEvents.OnPlayerWieldItem -= CheckShouldDoubleHand;
