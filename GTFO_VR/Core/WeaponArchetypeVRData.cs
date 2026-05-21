@@ -1,4 +1,5 @@
 ﻿using BepInEx.Unity.IL2CPP.UnityEngine;
+using GTFO_VR.Core.PlayerBehaviours;
 using GTFO_VR.Events;
 using Newtonsoft.Json;
 using System;
@@ -70,20 +71,20 @@ namespace GTFO_VR.Core
             {
                 { "Default", new VRWeaponData(new Vector3(0f, 0f, 0f), false) },
                 // Melee
-                { "SANTONIAN HDH", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "OMNECO MAUL", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "KOVAC SLEDGEHAMMER", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "SANTONIAN MALLET", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "MACO GAVEL", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "SANTONIAN HDH", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Sledgehammer") },
+                { "OMNECO MAUL", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Sledgehammer") },
+                { "KOVAC SLEDGEHAMMER", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Sledgehammer") },
+                { "SANTONIAN MALLET", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Sledgehammer") },
+                { "MACO GAVEL", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Sledgehammer") },
 
-                { "MASTABA FIXED BLADE", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "WOX COMPACT", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "MASTABA FIXED BLADE", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Knife") },
+                { "WOX COMPACT", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Knife") },
 
-                { "MACO DRILLHEAD", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "ISOCO STINGER", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "MACO DRILLHEAD", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Spear") },
+                { "ISOCO STINGER", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Spear") },
 
-                { "KOVAC PEACEKEEPER", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "ATTROC TITANIUM", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
+                { "KOVAC PEACEKEEPER", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Spear") },
+                { "ATTROC TITANIUM", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Spear") },
 
                 // Tool
                 { "STALWART FLOW G2", new VRWeaponData(new Vector3(0f, 0f, 0f), false) },
@@ -125,22 +126,10 @@ namespace GTFO_VR.Core
                 { "OMNECO LRG", new VRWeaponData(new Vector3(0f, 0f, 0f), true) },
                 { "BATALDO CUSTOM K330", new VRWeaponData(new Vector3(0f, 0f, 0f), true) },
 
-                 // Modded ( Fatal Experiment 2 etc )
-                { "MASTABA ASCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "MASTABA TRANSCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "MACHINE STICK", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-
-                // Thermonuclear, hammers
-                { "GEARMAK B44 ICEBREAKER", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "GEARMAK B43 ARTESIAN", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-
-                // Knives
-                { "GEARMAK GL2 ROYAL", new VRWeaponData(new Vector3(0f, -.05f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-                { "CULTIST ZA4-CONDEMN", new VRWeaponData(new Vector3(0f, -.3f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-
-                // FE3
-                { "BLITZ RAPIER", new VRWeaponData(new Vector3(0f, 0.28f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), false) },
-
+                { "MASTABA ASCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Sword") },
+                { "MASTABA TRANSCENDED BLADE", new VRWeaponData(new Vector3(0f, 0f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Giga Sword") },
+                { "MACHINE STICK", new VRWeaponData(new Vector3(0f, -.25f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Machine Stick") },
+                { "BLITZ RAPIER", new VRWeaponData(new Vector3(0f, 0.28f, 0f), Quaternion.Euler(new Vector3(45f, 0, 0)), "Spear") },
             };
 
             m_current = weaponDataByPublicName["Default"];
@@ -179,12 +168,14 @@ namespace GTFO_VR.Core
                     // Some modded? weapons include html tags in the archtype name
                     string sanitizedArchtype = Regex.Replace(item.ArchetypeName, "<.*?>", string.Empty);
 
-                    Debug.Log($"Sanitized archname: {sanitizedArchtype}");
+                    Log.Debug($"Sanitized archname: {sanitizedArchtype}");
 
                     switch (sanitizedArchtype)
                     {
                         case "Sledgehammer":
                         case "Reinforced Cudgel":
+                        case "Hammerfall":
+                        case "Glacial Mace":
                             {
                                 weaponDataByPublicName.TryGetValue("SANTONIAN HDH", out currentData);
                                 break;
@@ -192,6 +183,7 @@ namespace GTFO_VR.Core
 
                         case "Knife":
                         case "Assassin Knife":
+                        case "Reaper Dagger":
                             {
                                 weaponDataByPublicName.TryGetValue("MASTABA FIXED BLADE", out currentData);
                                 break;
@@ -202,16 +194,30 @@ namespace GTFO_VR.Core
                                 weaponDataByPublicName.TryGetValue("KOVAC PEACEKEEPER", out currentData);
                                 break;
                             }
+                        case "Machine Stick":
+                        case "Stick":
+                        {
+                            weaponDataByPublicName.TryGetValue("MACHINE STICK", out currentData);
+                            break;
+                        }
 
                         case "Spear":
                         case "Combat Spear":
+                        case "Meteor Lance":
                             {
                                 weaponDataByPublicName.TryGetValue("MACO DRILLHEAD", out currentData);
                                 break;
                             }
                         case "Honed Rapier":
-                        {
+                        case "Duelist Estoc":
+                        case "Sword":
+                            {
                             weaponDataByPublicName.TryGetValue("BLITZ RAPIER", out currentData);
+                            break;
+                        }
+                        case "Sleeper Buster":
+                        {
+                            weaponDataByPublicName.TryGetValue("MASTABA TRANSCENDED BLADE", out currentData);
                             break;
                         }
                     }
@@ -225,6 +231,12 @@ namespace GTFO_VR.Core
                     m_current = weaponDataByPublicName["Default"];
                 }
             }
+
+            if (m_current.isMelee)
+            {
+                VRMeleeWeapon.Current.ChangeWeapon(m_current.meleeArchtype);
+            }
+          
         }
 
         public static Vector3 CalculateGripOffset(Transform heldItem)

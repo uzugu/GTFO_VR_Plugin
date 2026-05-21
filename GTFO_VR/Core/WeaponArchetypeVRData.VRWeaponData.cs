@@ -30,6 +30,8 @@ namespace GTFO_VR.Core
             public bool allowsDoubleHanded;
             public Quaternion rotationOffset;
             public float scaleMultiplier;
+            public string meleeArchtype;
+            public bool isMelee;
 
             public VRWeaponData(Vector3 transformToGrip, bool doubleHandedAim)
             {
@@ -37,6 +39,8 @@ namespace GTFO_VR.Core
                 allowsDoubleHanded = doubleHandedAim;
                 rotationOffset = Quaternion.identity;
                 scaleMultiplier = 1.1f;
+                meleeArchtype = string.Empty;
+                isMelee = false;
             }
 
             public VRWeaponData(Vector3 posToGripOffset, Quaternion rotationOffset, bool doubleHandedAim)
@@ -45,6 +49,18 @@ namespace GTFO_VR.Core
                 allowsDoubleHanded = doubleHandedAim;
                 this.rotationOffset = rotationOffset;
                 scaleMultiplier = 1.1f;
+                meleeArchtype = string.Empty;
+                isMelee = false;
+            }
+
+            public VRWeaponData(Vector3 posToGripOffset, Quaternion rotationOffset, string meleeArchtype)
+            {
+                positonOffset = posToGripOffset;
+                allowsDoubleHanded = false;
+                this.rotationOffset = rotationOffset;
+                scaleMultiplier = 1.1f;
+                this.meleeArchtype = meleeArchtype;
+                isMelee = false;
             }
 
             public VRWeaponData(Vector3 posToGripOffset,bool doubleHandedAim, float scaleMult)
@@ -53,6 +69,8 @@ namespace GTFO_VR.Core
                 allowsDoubleHanded = doubleHandedAim;
                 this.rotationOffset = Quaternion.identity;
                 scaleMultiplier = scaleMult;
+                meleeArchtype = string.Empty;
+                isMelee = false;
             }
 
             public VRWeaponData(Vector3 posToGripOffset, Quaternion rotationOffset, bool doubleHandedAim, float scaleMult)
@@ -61,6 +79,8 @@ namespace GTFO_VR.Core
                 allowsDoubleHanded = doubleHandedAim;
                 this.rotationOffset = rotationOffset;
                 scaleMultiplier = scaleMult;
+                meleeArchtype = string.Empty;
+                isMelee = false;
             }
         }
 

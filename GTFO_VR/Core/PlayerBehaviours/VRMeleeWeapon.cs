@@ -40,21 +40,10 @@ namespace GTFO_VR.Core.PlayerBehaviours
         private static readonly float DEBUG_HIT_DRAW_DURATION = 5;
 #endif
 
-        public void Setup(MeleeWeaponFirstPerson weapon)
+
+        public void ChangeWeapon(String archtype)
         {
-            Current = this;
-
-            m_weapon = weapon;
-            m_animatorRoot = m_weapon.ModelData.m_damageRefAttack.parent;
-            m_chargeupIndicatorLight = new GameObject("VR_Weapon_Chargeup_Light").AddComponent<Light>();
-            m_chargeupIndicatorLight.color = Color.white;
-
-            m_chargeupIndicatorLight.enabled = false;
-            m_chargeupIndicatorLight.shadows = LightShadows.None;
-            VRMeleeWeaponEvents.OnHammerFullyCharged += WeaponFullyCharged;
-            VRMeleeWeaponEvents.OnHammerHalfCharged += WeaponHalfCharged;
-
-            switch (weapon.ArchetypeName)
+            switch (archtype)
             {
                 case "Spear":
                     m_hitboxSize = 0.035f;
@@ -89,8 +78,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
                     m_velocityRequired = true;
                     break;
 
-                // Project hwarever mod weapons
-                case "Stick":
+                case "Machine Stick":
                     m_hitboxSize = .03f;
                     m_offsetTip = new Vector3(0, 0.42f, 0f);
                     m_offsetBase = new Vector3(0, 0.02f, 0.0f);
@@ -118,9 +106,23 @@ namespace GTFO_VR.Core.PlayerBehaviours
                     break;
 
                 default:
-                    Log.Error($"Unknown melee weapon detected {weapon.name}");
+                    Log.Error($"Unknown melee weapon archtype detected {archtype}");
                     return;
             }
+        }
+        public void Setup(MeleeWeaponFirstPerson weapon)
+        {
+            Current = this;
+
+            m_weapon = weapon;
+            m_animatorRoot = m_weapon.ModelData.m_damageRefAttack.parent;
+            m_chargeupIndicatorLight = new GameObject("VR_Weapon_Chargeup_Light").AddComponent<Light>();
+            m_chargeupIndicatorLight.color = Color.white;
+
+            m_chargeupIndicatorLight.enabled = false;
+            m_chargeupIndicatorLight.shadows = LightShadows.None;
+            VRMeleeWeaponEvents.OnHammerFullyCharged += WeaponFullyCharged;
+            VRMeleeWeaponEvents.OnHammerHalfCharged += WeaponHalfCharged;
         }
 
         private void WeaponHalfCharged()
