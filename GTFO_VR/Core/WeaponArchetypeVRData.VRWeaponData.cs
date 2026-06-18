@@ -60,7 +60,7 @@ namespace GTFO_VR.Core
                 this.rotationOffset = rotationOffset;
                 scaleMultiplier = 1.1f;
                 this.meleeArchtype = meleeArchtype;
-                isMelee = false;
+                isMelee = true;
             }
 
             public VRWeaponData(Vector3 posToGripOffset,bool doubleHandedAim, float scaleMult)

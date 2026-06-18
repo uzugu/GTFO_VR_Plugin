@@ -204,7 +204,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
                 return;
             }
 
-            if (ItemEquippableEvents.IsItemShootableWeapon(item) || PSVR2HapticsManager.HasCustomProfile(item?.PublicName))
+            if (ItemEquippableEvents.IsItemShootableWeapon(item) || PSVR2HapticsManager.HasCustomProfile(item))
             {
                 PSVR2HapticsManager.ApplyWeaponProfile(item);
             }

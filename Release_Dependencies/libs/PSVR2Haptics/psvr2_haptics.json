@@ -851,11 +851,11 @@
     "BEAM RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
-        "triggerStrength": 6,
-        "slopeStartStrength": 4,
-        "slopeEndStrength": 6,
-        "fireAmplitude": 5,
-        "fireFrequency": 180
+        "triggerStrength": 7,
+        "slopeStartStrength": 5,
+        "slopeEndStrength": 7,
+        "fireAmplitude": 6,
+        "fireFrequency": 200
     },
     "BLITZ BEAM RIFLE": {
         "startPosition": 2,
@@ -911,7 +911,7 @@
         "fireAmplitude": 4,
         "fireFrequency": 200
     },
-    "PURE NANO SMG": {
+    "BLITZ NANO SMG": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 5,
@@ -920,7 +920,34 @@
         "fireAmplitude": 5,
         "fireFrequency": 220
     },
-    "SPLIT RIFLE": {
+    "BLITZ SHRAPNEL SMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 5,
+        "slopeStartStrength": 3,
+        "slopeEndStrength": 5,
+        "fireAmplitude": 5,
+        "fireFrequency": 150
+    },
+    "VOID SHRAPNEL SMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 6,
+        "slopeStartStrength": 4,
+        "slopeEndStrength": 6,
+        "fireAmplitude": 6,
+        "fireFrequency": 160
+    },
+    "PURE SHRAPNEL SMG": {
+        "startPosition": 2,
+        "endPosition": 8,
+        "triggerStrength": 6,
+        "slopeStartStrength": 4,
+        "slopeEndStrength": 6,
+        "fireAmplitude": 6,
+        "fireFrequency": 170
+    },
+    "CRESCENDO SHOTGUN": {
         "startPosition": 2,
         "endPosition": 8,
         "triggerStrength": 7,
@@ -954,7 +981,15 @@
         "slopeStartStrength": 6,
         "slopeEndStrength": 7,
         "fireAmplitude": 7,
-        "fireFrequency": 60
+        "fireFrequency": 60,
+        "firePattern": [
+            {"amplitude": 7, "frequency": 220, "delayMs": 0},
+            {"amplitude": 6, "frequency": 170, "delayMs": 80},
+            {"amplitude": 4, "frequency": 110, "delayMs": 180},
+            {"amplitude": 2, "frequency": 60, "delayMs": 300},
+            {"amplitude": 1, "frequency": 30, "delayMs": 420},
+            {"amplitude": 0, "frequency": 0, "delayMs": 500}
+        ]
     },
     "PURE KILL-FEED PISTOL": {
         "startPosition": 4,
@@ -963,7 +998,15 @@
         "slopeStartStrength": 7,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 70
+        "fireFrequency": 70,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 60},
+            {"amplitude": 5, "frequency": 140, "delayMs": 140},
+            {"amplitude": 3, "frequency": 80, "delayMs": 220},
+            {"amplitude": 1, "frequency": 40, "delayMs": 300},
+            {"amplitude": 0, "frequency": 0, "delayMs": 380}
+        ]
     },
     "SHRAPNEL SMG": {
         "startPosition": 2,
@@ -1008,7 +1051,15 @@
         "slopeStartStrength": 6,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 50
+        "fireFrequency": 50,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 50},
+            {"amplitude": 5, "frequency": 140, "delayMs": 120},
+            {"amplitude": 3, "frequency": 80, "delayMs": 200},
+            {"amplitude": 1, "frequency": 40, "delayMs": 280},
+            {"amplitude": 0, "frequency": 0, "delayMs": 350}
+        ]
     },
     "BLITZ CRESCENDO SHOTGUN": {
         "startPosition": 2,
@@ -1017,7 +1068,14 @@
         "slopeStartStrength": 5,
         "slopeEndStrength": 7,
         "fireAmplitude": 7,
-        "fireFrequency": 45
+        "fireFrequency": 45,
+        "firePattern": [
+            {"amplitude": 6, "frequency": 200, "delayMs": 0},
+            {"amplitude": 5, "frequency": 150, "delayMs": 60},
+            {"amplitude": 3, "frequency": 90, "delayMs": 140},
+            {"amplitude": 2, "frequency": 50, "delayMs": 220},
+            {"amplitude": 0, "frequency": 0, "delayMs": 300}
+        ]
     },
     "VOID CRESCENDO SHOTGUN": {
         "startPosition": 2,
@@ -1026,7 +1084,15 @@
         "slopeStartStrength": 6,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 50
+        "fireFrequency": 50,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 50},
+            {"amplitude": 5, "frequency": 140, "delayMs": 120},
+            {"amplitude": 3, "frequency": 80, "delayMs": 200},
+            {"amplitude": 1, "frequency": 40, "delayMs": 280},
+            {"amplitude": 0, "frequency": 0, "delayMs": 350}
+        ]
     },
     "PURE CRESCENDO SHOTGUN": {
         "startPosition": 2,
@@ -1035,16 +1101,32 @@
         "slopeStartStrength": 7,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 60
+        "fireFrequency": 60,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 40},
+            {"amplitude": 6, "frequency": 150, "delayMs": 100},
+            {"amplitude": 4, "frequency": 100, "delayMs": 170},
+            {"amplitude": 2, "frequency": 50, "delayMs": 250},
+            {"amplitude": 0, "frequency": 0, "delayMs": 320}
+        ]
     },
     "PRECISION RIFLE": {
         "startPosition": 2,
         "endPosition": 8,
-        "triggerStrength": 7,
-        "slopeStartStrength": 5,
-        "slopeEndStrength": 7,
+        "triggerStrength": 8,
+        "slopeStartStrength": 6,
+        "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 40
+        "fireFrequency": 40,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 80},
+            {"amplitude": 5, "frequency": 140, "delayMs": 180},
+            {"amplitude": 3, "frequency": 90, "delayMs": 300},
+            {"amplitude": 1, "frequency": 40, "delayMs": 420},
+            {"amplitude": 0, "frequency": 0, "delayMs": 500}
+        ]
     },
     "PURE PRECISION RIFLE": {
         "startPosition": 2,
@@ -1058,11 +1140,19 @@
     "RAY GUN": {
         "startPosition": 2,
         "endPosition": 8,
-        "triggerStrength": 6,
-        "slopeStartStrength": 4,
-        "slopeEndStrength": 6,
-        "fireAmplitude": 6,
-        "fireFrequency": 100
+        "triggerStrength": 8,
+        "slopeStartStrength": 6,
+        "slopeEndStrength": 8,
+        "fireAmplitude": 8,
+        "fireFrequency": 250,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 220, "delayMs": 60},
+            {"amplitude": 5, "frequency": 160, "delayMs": 140},
+            {"amplitude": 3, "frequency": 100, "delayMs": 240},
+            {"amplitude": 1, "frequency": 50, "delayMs": 340},
+            {"amplitude": 0, "frequency": 0, "delayMs": 400}
+        ]
     },
     "BLITZ RAY GUN": {
         "startPosition": 2,
@@ -1071,7 +1161,14 @@
         "slopeStartStrength": 3,
         "slopeEndStrength": 5,
         "fireAmplitude": 5,
-        "fireFrequency": 90
+        "fireFrequency": 90,
+        "firePattern": [
+            {"amplitude": 6, "frequency": 200, "delayMs": 0},
+            {"amplitude": 5, "frequency": 160, "delayMs": 80},
+            {"amplitude": 3, "frequency": 100, "delayMs": 180},
+            {"amplitude": 2, "frequency": 60, "delayMs": 280},
+            {"amplitude": 0, "frequency": 0, "delayMs": 350}
+        ]
     },
     "VOID RAY GUN": {
         "startPosition": 2,
@@ -1080,7 +1177,15 @@
         "slopeStartStrength": 4,
         "slopeEndStrength": 6,
         "fireAmplitude": 6,
-        "fireFrequency": 100
+        "fireFrequency": 100,
+        "firePattern": [
+            {"amplitude": 7, "frequency": 230, "delayMs": 0},
+            {"amplitude": 6, "frequency": 180, "delayMs": 60},
+            {"amplitude": 4, "frequency": 130, "delayMs": 140},
+            {"amplitude": 2, "frequency": 80, "delayMs": 240},
+            {"amplitude": 1, "frequency": 40, "delayMs": 330},
+            {"amplitude": 0, "frequency": 0, "delayMs": 400}
+        ]
     },
     "TECH RIFLE": {
         "startPosition": 2,
@@ -1098,7 +1203,15 @@
         "slopeStartStrength": 6,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 30
+        "fireFrequency": 30,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 80},
+            {"amplitude": 5, "frequency": 140, "delayMs": 180},
+            {"amplitude": 3, "frequency": 90, "delayMs": 300},
+            {"amplitude": 1, "frequency": 40, "delayMs": 420},
+            {"amplitude": 0, "frequency": 0, "delayMs": 500}
+        ]
     },
     "BLITZ VIRUS SNIPER": {
         "startPosition": 2,
@@ -1107,7 +1220,15 @@
         "slopeStartStrength": 5,
         "slopeEndStrength": 7,
         "fireAmplitude": 7,
-        "fireFrequency": 25
+        "fireFrequency": 25,
+        "firePattern": [
+            {"amplitude": 7, "frequency": 220, "delayMs": 0},
+            {"amplitude": 6, "frequency": 170, "delayMs": 80},
+            {"amplitude": 4, "frequency": 120, "delayMs": 180},
+            {"amplitude": 2, "frequency": 70, "delayMs": 300},
+            {"amplitude": 1, "frequency": 30, "delayMs": 420},
+            {"amplitude": 0, "frequency": 0, "delayMs": 500}
+        ]
     },
     "VOID VIRUS SNIPER": {
         "startPosition": 2,
@@ -1116,7 +1237,15 @@
         "slopeStartStrength": 6,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 30
+        "fireFrequency": 30,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 80},
+            {"amplitude": 5, "frequency": 140, "delayMs": 180},
+            {"amplitude": 3, "frequency": 90, "delayMs": 300},
+            {"amplitude": 1, "frequency": 40, "delayMs": 420},
+            {"amplitude": 0, "frequency": 0, "delayMs": 500}
+        ]
     },
     "STASIS SHOTGUN": {
         "startPosition": 2,
@@ -1125,16 +1254,24 @@
         "slopeStartStrength": 6,
         "slopeEndStrength": 8,
         "fireAmplitude": 8,
-        "fireFrequency": 40
+        "fireFrequency": 40,
+        "firePattern": [
+            {"amplitude": 8, "frequency": 250, "delayMs": 0},
+            {"amplitude": 7, "frequency": 200, "delayMs": 50},
+            {"amplitude": 5, "frequency": 140, "delayMs": 120},
+            {"amplitude": 3, "frequency": 80, "delayMs": 200},
+            {"amplitude": 1, "frequency": 40, "delayMs": 280},
+            {"amplitude": 0, "frequency": 0, "delayMs": 350}
+        ]
     },
     "RAID LMG": {
         "startPosition": 2,
         "endPosition": 8,
-        "triggerStrength": 6,
-        "slopeStartStrength": 4,
-        "slopeEndStrength": 6,
-        "fireAmplitude": 6,
-        "fireFrequency": 140
+        "triggerStrength": 7,
+        "slopeStartStrength": 5,
+        "slopeEndStrength": 7,
+        "fireAmplitude": 7,
+        "fireFrequency": 200
     },
     "BLITZ RAID LMG": {
         "startPosition": 2,
@@ -1143,7 +1280,17 @@
         "slopeStartStrength": 3,
         "slopeEndStrength": 5,
         "fireAmplitude": 5,
-        "fireFrequency": 120
+        "fireFrequency": 120,
+        "firePattern": [
+            {"amplitude": 5, "frequency": 180, "delayMs": 0},
+            {"amplitude": 5, "frequency": 180, "delayMs": 100},
+            {"amplitude": 5, "frequency": 180, "delayMs": 200},
+            {"amplitude": 5, "frequency": 180, "delayMs": 300},
+            {"amplitude": 5, "frequency": 180, "delayMs": 400},
+            {"amplitude": 5, "frequency": 180, "delayMs": 500},
+            {"amplitude": 4, "frequency": 140, "delayMs": 600},
+            {"amplitude": 0, "frequency": 0, "delayMs": 700}
+        ]
     },
     "VOID RAID LMG": {
         "startPosition": 2,
@@ -1152,7 +1299,17 @@
         "slopeStartStrength": 4,
         "slopeEndStrength": 6,
         "fireAmplitude": 6,
-        "fireFrequency": 140
+        "fireFrequency": 140,
+        "firePattern": [
+            {"amplitude": 6, "frequency": 200, "delayMs": 0},
+            {"amplitude": 6, "frequency": 200, "delayMs": 100},
+            {"amplitude": 6, "frequency": 200, "delayMs": 200},
+            {"amplitude": 6, "frequency": 200, "delayMs": 300},
+            {"amplitude": 6, "frequency": 200, "delayMs": 400},
+            {"amplitude": 6, "frequency": 200, "delayMs": 500},
+            {"amplitude": 5, "frequency": 160, "delayMs": 600},
+            {"amplitude": 0, "frequency": 0, "delayMs": 700}
+        ]
     },
     "PURE RAID LMG": {
         "startPosition": 2,
@@ -1161,7 +1318,17 @@
         "slopeStartStrength": 5,
         "slopeEndStrength": 7,
         "fireAmplitude": 7,
-        "fireFrequency": 160
+        "fireFrequency": 160,
+        "firePattern": [
+            {"amplitude": 7, "frequency": 220, "delayMs": 0},
+            {"amplitude": 7, "frequency": 220, "delayMs": 100},
+            {"amplitude": 7, "frequency": 220, "delayMs": 200},
+            {"amplitude": 7, "frequency": 220, "delayMs": 300},
+            {"amplitude": 7, "frequency": 220, "delayMs": 400},
+            {"amplitude": 7, "frequency": 220, "delayMs": 500},
+            {"amplitude": 6, "frequency": 180, "delayMs": 600},
+            {"amplitude": 0, "frequency": 0, "delayMs": 700}
+        ]
     },
     "_comment_fe3_melee": "FE3 Melee Weapons",
     "RAPIER": {

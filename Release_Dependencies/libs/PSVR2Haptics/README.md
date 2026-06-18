@@ -8,22 +8,62 @@ This folder contains configuration files for PSVR2 adaptive trigger haptics.
 - **PSVR2 headset** connected via USB or wireless adapter
 - GTFO VR Plugin with PSVR2 support enabled in settings
 
-## Configuration File
+## Configuration Files
 
 ### `psvr2_haptics.json`
 
-Defines weapon-specific haptic profiles for adaptive triggers. Each weapon can have:
+Defines the base weapon-specific haptic profiles for adaptive triggers.
+
+### `psvr2_haptics_fe3.json` or `psvr2_haptics_fe3_experimental.json`
+
+Optional sidecar files for FE3-specific profiles. These files must be in the same `BepInEx/plugins/PSVR2Haptics` folder as `psvr2_haptics.json`.
+
+The loader reads files in this order:
+
+1. `psvr2_haptics.json`
+2. `psvr2_haptics_fe3.json`
+3. `psvr2_haptics_fe3_experimental.json`
+
+Later files override earlier files when they use the same profile key. This lets the base file stay close to the original profile set while FE3 profiles live separately.
+
+Each weapon profile can have:
+
+Profiles are merged from broad to specific:
+
+1. `DEFAULT`
+2. Public name with rich-text tags stripped
+3. Exact weapon public name, including GTFO rich-text color tags
+4. Stripped archetype name, then exact archetype name
+5. `id:<id>` / `archetypeid:<id>` / `archetype:<id>`
+
+Use archetype keys for FE3 weapons that share the same visible name but behave differently by level, sequence, aim swap, or charge branch.
+
+```json
+"archetype:424": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [0, 1, 3, 6, 8, 8, 7, 5, 3, 1]
+}
+```
 
 #### Basic Trigger Settings
+- `triggerMode`: `slope` (default), `weapon`, `feedback`, `multiPosition`, `multiPositionVibration`, or `off`
 - `startPosition` (0-9): Where trigger resistance begins
 - `endPosition` (0-9): Where trigger resistance ends (travel distance)
 - `triggerStrength` (1-8): Overall trigger resistance force
 - `slopeStartStrength` (1-8): Progressive resistance at start of pull
 - `slopeEndStrength` (1-8): Progressive resistance at end of pull
+- `feedbackPosition` (0-9): Single resistance point used by `feedback` mode
+- `feedbackStrength` (0-8): Resistance used by `feedback` mode
+- `multiPositionFeedback`: 10 resistance values for trigger positions 0-9, used by `multiPosition` mode
+- `multiPositionVibrationFrequency` (0-255): Frequency used by `multiPositionVibration` mode
+- `multiPositionVibration`: 10 vibration amplitude values for trigger positions 0-9, used by `multiPositionVibration` mode
 
 #### Fire Feedback
+- `fireVibrationPosition` (0-9): Trigger position used for fire vibration
 - `fireAmplitude` (1-8): Vibration strength on weapon fire
 - `fireFrequency` (1-255): Vibration pitch in Hz (higher = sharper)
+- `disableTriggerOnFire` (`true`/`false`): Temporarily clear trigger resistance before the fire vibration
+- `restoreTriggerAfterFire` (`true`/`false`): Restore the weapon trigger profile after the fire vibration
 
 #### Advanced Fire Patterns
 For weapons like energy guns, you can define multi-stage vibration sequences:
@@ -42,6 +82,43 @@ For weapons like energy guns, you can define multi-stage vibration sequences:
 ]
 ```
 
+#### Advanced Trigger Examples
+Use `multiPosition` for weapons that need a custom trigger curve instead of a simple ramp:
+
+```json
+"CRESCENDO SHOTGUN": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [3, 4, 6, 8, 8, 7, 5, 3, 2, 1],
+    "fireVibrationPosition": 3,
+    "fireAmplitude": 8,
+    "fireFrequency": 50
+}
+```
+
+Use `feedback` for a crisp trigger wall:
+
+```json
+"KILL-FEED PISTOL": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 8,
+    "fireAmplitude": 7,
+    "fireFrequency": 80
+}
+```
+
+Use `multiPositionVibration` when you want vibration amplitude to change with trigger travel. We trust the PSVR2 Toolkit API contract for this mode; if a toolkit build behaves strangely, verify the toolkit first before assuming the weapon profile is wrong.
+
+```json
+"BEAM RIFLE": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 45,
+    "multiPositionVibration": [0, 1, 2, 3, 5, 6, 6, 5, 4, 3],
+    "fireAmplitude": 5,
+    "fireFrequency": 120
+}
+```
+
 ## Weapon Design Philosophy
 
 - **Pistols/Semi-auto**: Short trigger travel (`endPosition` close to `startPosition`) for crisp, snappy feel
@@ -52,7 +129,7 @@ For weapons like energy guns, you can define multi-stage vibration sequences:
 
 ## Customization
 
-Edit `psvr2_haptics.json` while the game is not running. Changes take effect on next launch.
+Edit `psvr2_haptics.json` or the FE3 sidecar file while the game is not running. Changes take effect on next launch.
 
 If the file is missing, the plugin will auto-generate a default configuration.
 

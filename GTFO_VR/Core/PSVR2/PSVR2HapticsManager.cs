@@ -5,6 +5,7 @@ using PSVR2Toolkit.CAPI;
 using Player;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -42,25 +43,137 @@ namespace GTFO_VR.Core.PSVR2
         private static PSVR2WeaponProfile _currentProfile = new PSVR2WeaponProfile
         {
             WeaponName = "DEFAULT",
+            TriggerMode = PSVR2TriggerMode.Slope,
             StartPosition = DEFAULT_START_POSITION,
             EndPosition = DEFAULT_END_POSITION,
             TriggerStrength = MAX_STRENGTH,
             SlopeStartStrength = MIN_STRENGTH,
             SlopeEndStrength = MAX_STRENGTH,
+            FeedbackPosition = FIRE_VIBRATION_POSITION,
+            FeedbackStrength = MAX_STRENGTH,
+            MultiPositionFeedback = null,
+            MultiPositionVibrationFrequency = DEFAULT_FIRE_FREQUENCY,
+            MultiPositionVibration = null,
+            FireVibrationPosition = FIRE_VIBRATION_POSITION,
             FireAmplitude = MAX_STRENGTH,
             FireFrequency = DEFAULT_FIRE_FREQUENCY,
+            DisableTriggerOnFire = true,
+            RestoreTriggerAfterFire = true,
             FirePattern = null
         };
 
         private static bool _initialized;
+        private static int _profileGeneration;
 
         private static void SendCurrentTriggerProfile()
         {
             var ipc = IpcClient.Instance();
             var mainController = GetMainControllerType();
-            ipc.TriggerEffectWeapon(mainController, _currentProfile.StartPosition, _currentProfile.EndPosition, _currentProfile.TriggerStrength);
-            ipc.TriggerEffectSlopeFeedback(mainController, _currentProfile.StartPosition, _currentProfile.EndPosition, _currentProfile.SlopeStartStrength, _currentProfile.SlopeEndStrength);
+            SendTriggerProfile(ipc, mainController, _currentProfile);
             DisableOffHandTrigger(ipc);
+        }
+
+        private static void SendCurrentTriggerProfile(int generation)
+        {
+            if (!IsCurrentProfileGeneration(generation))
+            {
+                return;
+            }
+
+            SendCurrentTriggerProfile();
+        }
+
+        private static int BeginProfileTransition()
+        {
+            _profileGeneration++;
+            return _profileGeneration;
+        }
+
+        private static bool IsCurrentProfileGeneration(int generation)
+        {
+            return generation == _profileGeneration;
+        }
+
+        private static void DisableAllTriggers(IpcClient ipc, string reason)
+        {
+            Log.Debug($"PSVR2 haptics clear triggers: {reason}.");
+            ipc.TriggerEffectDisable(EVRControllerType.Both);
+        }
+
+        private static void SendTriggerProfile(IpcClient ipc, EVRControllerType controllerType, PSVR2WeaponProfile profile)
+        {
+            switch (profile.TriggerMode)
+            {
+                case PSVR2TriggerMode.Off:
+                    ipc.TriggerEffectDisable(controllerType);
+                    break;
+                case PSVR2TriggerMode.Weapon:
+                    NormalizeRange(profile.StartPosition, profile.EndPosition, 2, 7, 8, out var weaponStart, out var weaponEnd);
+                    ipc.TriggerEffectWeapon(controllerType, weaponStart, weaponEnd, ClampStrength(profile.TriggerStrength, 0));
+                    break;
+                case PSVR2TriggerMode.Feedback:
+                    ipc.TriggerEffectFeedback(controllerType, ClampPosition(profile.FeedbackPosition), ClampStrength(profile.FeedbackStrength, 0));
+                    break;
+                case PSVR2TriggerMode.MultiPosition:
+                    if (profile.MultiPositionFeedback != null && profile.MultiPositionFeedback.Length == 10)
+                    {
+                        ipc.TriggerEffectMultiplePositionFeedback(controllerType, profile.MultiPositionFeedback);
+                        break;
+                    }
+
+                    Log.Warning($"PSVR2 profile '{profile.WeaponName}' requested multi-position feedback without 10 control points; falling back to slope.");
+                    goto default;
+                case PSVR2TriggerMode.MultiPositionVibration:
+                    if (profile.MultiPositionVibration != null && profile.MultiPositionVibration.Length == 10)
+                    {
+                        // Trust the toolkit API contract here: this mode should apply vibration amplitude per trigger position.
+                        ipc.TriggerEffectMultiplePositionVibration(controllerType, profile.MultiPositionVibrationFrequency, profile.MultiPositionVibration);
+                        break;
+                    }
+
+                    Log.Warning($"PSVR2 profile '{profile.WeaponName}' requested multi-position vibration without 10 control points; falling back to slope.");
+                    goto default;
+                default:
+                    NormalizeRange(profile.StartPosition, profile.EndPosition, 0, 8, 9, out var slopeStart, out var slopeEnd);
+                    ipc.TriggerEffectSlopeFeedback(
+                        controllerType,
+                        slopeStart,
+                        slopeEnd,
+                        ClampStrength(profile.SlopeStartStrength, 1),
+                        ClampStrength(profile.SlopeEndStrength, 1));
+                    break;
+            }
+        }
+
+        private static void NormalizeRange(byte startPosition, byte endPosition, byte minStart, byte maxStart, byte maxEnd, out byte start, out byte end)
+        {
+            start = ClampByte(startPosition, minStart, maxStart);
+            end = ClampByte(endPosition, (byte)(start + 1), maxEnd);
+        }
+
+        private static byte ClampPosition(byte value)
+        {
+            return ClampByte(value, 0, 9);
+        }
+
+        private static byte ClampStrength(byte value, byte min)
+        {
+            return ClampByte(value, min, MAX_STRENGTH);
+        }
+
+        private static byte ClampByte(byte value, byte min, byte max)
+        {
+            if (value < min)
+            {
+                return min;
+            }
+
+            if (value > max)
+            {
+                return max;
+            }
+
+            return value;
         }
 
         private static EVRControllerType GetControllerTypeForHand(HandType handType)
@@ -198,10 +311,13 @@ namespace GTFO_VR.Core.PSVR2
         private static void ApplyCurrentWeaponProfile()
         {
             var current = ItemEquippableEvents.currentItem;
-            if (current != null && ItemEquippableEvents.IsItemShootableWeapon(current))
+            if (current != null && (ItemEquippableEvents.IsItemShootableWeapon(current) || HasCustomProfile(current)))
             {
                 ApplyWeaponProfile(current);
+                return;
             }
+
+            DisableTriggers();
         }
 
         private static PSVR2WeaponProfile BuildWeaponProfile(ItemEquippable item)
@@ -209,19 +325,28 @@ namespace GTFO_VR.Core.PSVR2
             var profile = new PSVR2WeaponProfile
             {
                 WeaponName = item != null ? item.PublicName : "DEFAULT",
+                TriggerMode = PSVR2TriggerMode.Slope,
                 StartPosition = DEFAULT_START_POSITION,
                 EndPosition = DEFAULT_END_POSITION,
                 TriggerStrength = MAX_STRENGTH,
                 SlopeStartStrength = MIN_STRENGTH,
                 SlopeEndStrength = MAX_STRENGTH,
+                FeedbackPosition = FIRE_VIBRATION_POSITION,
+                FeedbackStrength = MAX_STRENGTH,
+                MultiPositionFeedback = null,
+                MultiPositionVibrationFrequency = DEFAULT_FIRE_FREQUENCY,
+                MultiPositionVibration = null,
+                FireVibrationPosition = FIRE_VIBRATION_POSITION,
                 FireAmplitude = MAX_STRENGTH,
                 FireFrequency = DEFAULT_FIRE_FREQUENCY,
+                DisableTriggerOnFire = true,
+                RestoreTriggerAfterFire = true,
                 FirePattern = null
             };
 
             if (item == null)
             {
-                PSVR2HapticsConfig.ApplyOverrides(null, ref profile);
+                PSVR2HapticsConfig.ApplyOverrides(null, null, null, ref profile);
                 return profile;
             }
 
@@ -238,14 +363,87 @@ namespace GTFO_VR.Core.PSVR2
                 profile.FireFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(60f, 200f, rumbleStrength)), 0, 255);
             }
 
-            PSVR2HapticsConfig.ApplyOverrides(item.PublicName, ref profile);
+            PSVR2HapticsConfig.ApplyOverrides(item.PublicName, item.ArchetypeName, GetArchetypeId(item), ref profile);
             return profile;
         }
 
-
-        internal static bool HasCustomProfile(string weaponName)
+        private static int? GetArchetypeId(ItemEquippable item)
         {
-            return PSVR2HapticsConfig.HasProfile(weaponName);
+            if (item == null)
+            {
+                return null;
+            }
+
+            var itemId = TryGetPersistentId(item.ItemDataBlock);
+            if (itemId.HasValue)
+            {
+                return itemId;
+            }
+
+            var reflectedItemId = TryGetPersistentId(TryGetMemberValue(item, "ArchetypeData"));
+            if (reflectedItemId.HasValue)
+            {
+                return reflectedItemId;
+            }
+
+            return TryGetPersistentId(TryGetMemberValue(item, "MeleeArchetypeData"));
+        }
+
+        private static int? TryGetPersistentId(object source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            var value = TryGetMemberValue(source, "persistentID") ?? TryGetMemberValue(source, "PersistentID");
+            if (value == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return Convert.ToInt32(value);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static object TryGetMemberValue(object source, string memberName)
+        {
+            if (source == null || string.IsNullOrWhiteSpace(memberName))
+            {
+                return null;
+            }
+
+            var type = source.GetType();
+            var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (property != null)
+            {
+                return property.GetValue(source, null);
+            }
+
+            var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return field?.GetValue(source);
+        }
+
+
+        internal static bool HasCustomProfile(ItemEquippable item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            return PSVR2HapticsConfig.HasProfile(item.PublicName, item.ArchetypeName, GetArchetypeId(item));
+        }
+
+        private static bool IsCurrentItemGlueGun()
+        {
+            return ItemEquippableEvents.currentItem is GlueGun;
         }
 
         internal static void ApplyWeaponProfile(ItemEquippable item)
@@ -255,18 +453,19 @@ namespace GTFO_VR.Core.PSVR2
                 return;
             }
 
-            // Reset C-Foam charging state when switching weapons
+            BeginProfileTransition();
             _glueGunCharging = false;
 
             _currentProfile = BuildWeaponProfile(item);
 
-            bool hasCustomProfile = item != null && PSVR2HapticsConfig.HasProfile(item.PublicName);
-            Log.Info($"PSVR2 weapon equipped: '{item?.PublicName ?? "(unknown)"}' | HasCustomProfile={hasCustomProfile} | Strength={_currentProfile.TriggerStrength} | StartPos={_currentProfile.StartPosition} | Freq={_currentProfile.FireFrequency}");
+            var archetypeId = item != null ? GetArchetypeId(item) : null;
+            bool hasCustomProfile = item != null && PSVR2HapticsConfig.HasProfile(item.PublicName, item.ArchetypeName, archetypeId);
+            Log.Info($"PSVR2 weapon equipped: '{item?.PublicName ?? "(unknown)"}' | Archetype='{item?.ArchetypeName ?? "(unknown)"}' | ArchetypeId={archetypeId?.ToString() ?? "(none)"} | HasCustomProfile={hasCustomProfile} | Mode={_currentProfile.TriggerMode} | Strength={_currentProfile.TriggerStrength} | StartPos={_currentProfile.StartPosition} | Freq={_currentProfile.FireFrequency}");
 
             var ipc = IpcClient.Instance();
             var mainController = GetMainControllerType();
-            ipc.TriggerEffectWeapon(mainController, _currentProfile.StartPosition, _currentProfile.EndPosition, _currentProfile.TriggerStrength);
-            ipc.TriggerEffectSlopeFeedback(mainController, _currentProfile.StartPosition, _currentProfile.EndPosition, _currentProfile.SlopeStartStrength, _currentProfile.SlopeEndStrength);
+            DisableAllTriggers(ipc, $"weapon profile switch to '{item?.PublicName ?? "(unknown)"}'");
+            SendTriggerProfile(ipc, mainController, _currentProfile);
             DisableOffHandTrigger(ipc);
         }
 
@@ -284,10 +483,15 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var controllerType = GetMainControllerType();
+            int generation = _profileGeneration;
 
             if (_currentProfile.FirePattern != null && _currentProfile.FirePattern.Count > 0)
             {
                 var pattern = new List<PSVR2FirePatternStep>(_currentProfile.FirePattern);
+                byte patternFireVibrationPosition = _currentProfile.FireVibrationPosition;
+                bool patternRestoreTriggerAfterFire = _currentProfile.RestoreTriggerAfterFire;
+                bool patternDisableTriggerOnFire = _currentProfile.DisableTriggerOnFire;
+
                 Task.Run(async () =>
                 {
                     int previousDelayMs = 0;
@@ -301,16 +505,31 @@ namespace GTFO_VR.Core.PSVR2
                         }
                         previousDelayMs = step.DelayMs;
 
-                        IpcClient.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, step.Amplitude, step.Frequency);
+                        if (!IsCurrentProfileGeneration(generation))
+                        {
+                            return;
+                        }
+
+                        IpcClient.Instance().TriggerEffectVibration(controllerType, patternFireVibrationPosition, step.Amplitude, step.Frequency);
                     }
 
-                    // Add trigger reset after pattern for semi-auto feel (shorter than normal since pattern already provided feedback)
-                    await Task.Delay(40); // Brief pause after last vibration
-                    IpcClient.Instance().TriggerEffectDisable(controllerType);
-                    await Task.Delay(60); // Quick trigger reset
+                    if (!patternRestoreTriggerAfterFire)
+                    {
+                        return;
+                    }
 
-                    // Restore trigger resistance after fire pattern completes
-                    SendCurrentTriggerProfile();
+                    await Task.Delay(40);
+                    if (!IsCurrentProfileGeneration(generation))
+                    {
+                        return;
+                    }
+
+                    if (patternDisableTriggerOnFire)
+                    {
+                        IpcClient.Instance().TriggerEffectDisable(controllerType);
+                    }
+                    await Task.Delay(60);
+                    SendCurrentTriggerProfile(generation);
                 });
                 return;
             }
@@ -325,6 +544,9 @@ namespace GTFO_VR.Core.PSVR2
 
             var profileAmplitude = _currentProfile.FireAmplitude > 0 ? _currentProfile.FireAmplitude : amplitude;
             var profileFrequency = _currentProfile.FireFrequency;
+            var fireVibrationPosition = _currentProfile.FireVibrationPosition;
+            var restoreTriggerAfterFire = _currentProfile.RestoreTriggerAfterFire;
+            var disableTriggerOnFire = _currentProfile.DisableTriggerOnFire;
 
             Log.Debug($"PSVR2 haptics fire vibration: amplitude={profileAmplitude}, freq={profileFrequency}");
 
@@ -332,38 +554,23 @@ namespace GTFO_VR.Core.PSVR2
 
             // Check if weapon has trigger-only resistance (startPosition == endPosition)
             // For trigger-only weapons, don't disable resistance (would leave trigger stuck)
-            bool isTriggerOnly = _currentProfile.StartPosition == _currentProfile.EndPosition;
-
-            if (!isTriggerOnly)
+            if (disableTriggerOnFire)
             {
-                // For weapons with travel: disable resistance so vibration can be felt
                 ipc.TriggerEffectDisable(controllerType);
             }
 
-            // Send vibration pulse
-            ipc.TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, profileAmplitude, profileFrequency);
+            ipc.TriggerEffectVibration(controllerType, fireVibrationPosition, profileAmplitude, profileFrequency);
 
-            // Trigger reset timing
-            if (isTriggerOnly)
+            if (!restoreTriggerAfterFire)
             {
-                // For trigger-only weapons (pistols, revolvers):
-                // Don't restore resistance - let it naturally restore when trigger is released
-                // The startPosition==endPosition means resistance is always at trigger point
-                // Just wait for vibration to finish, then we're done
                 return;
             }
 
-            // For weapons with travel: restore resistance after reset delay
             Task.Run(async () =>
             {
-                // Wait for vibration pulse
-                await Task.Delay(60); // 60ms - vibration pulse duration
-
-                // Additional delay while disabled for trigger reset feel
-                await Task.Delay(50); // 50ms - trigger reset time
-
-                // Restore full trigger resistance
-                SendCurrentTriggerProfile();
+                await Task.Delay(60);
+                await Task.Delay(50);
+                SendCurrentTriggerProfile(generation);
             });
         }
 
@@ -376,6 +583,7 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var controllerType = GetMainControllerType();
+            int generation = _profileGeneration;
 
             float normalized = hitEnemy ? Mathf.Clamp01(damage) : Mathf.Clamp01(damage * 0.6f);
             if (hitEnemy)
@@ -399,6 +607,11 @@ namespace GTFO_VR.Core.PSVR2
             {
                 for (int i = 0; i < stepCount; i++)
                 {
+                    if (!IsCurrentProfileGeneration(generation))
+                    {
+                        return;
+                    }
+
                     float t = stepCount == 1 ? 1f : i / (float)(stepCount - 1);
                     float decay = Mathf.Exp(-decayFactor * t);
 
@@ -419,7 +632,7 @@ namespace GTFO_VR.Core.PSVR2
                     }
                 }
 
-                SendCurrentTriggerProfile();
+                SendCurrentTriggerProfile(generation);
             });
         }
 
@@ -493,6 +706,17 @@ namespace GTFO_VR.Core.PSVR2
         {
             if (!EnsureReady())
             {
+                return;
+            }
+
+            if (!IsCurrentItemGlueGun())
+            {
+                if (_glueGunCharging)
+                {
+                    _glueGunCharging = false;
+                    ApplyCurrentWeaponProfile();
+                }
+
                 return;
             }
 
@@ -589,6 +813,7 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var controllerType = GetMainControllerType();
+            int generation = _profileGeneration;
 
             // Pulse wave that goes out and reflects back, losing strength
             Task.Run(async () =>
@@ -596,31 +821,38 @@ namespace GTFO_VR.Core.PSVR2
                 var ipc = IpcClient.Instance();
 
                 // Wave going out (strong to medium)
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 8, 200);
                 await Task.Delay(150);
 
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 7, 180);
                 await Task.Delay(150);
 
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 5, 150);
                 await Task.Delay(200);
 
                 // Wave reflecting back (medium to weak)
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 4, 120);
                 await Task.Delay(200);
 
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 3, 100);
                 await Task.Delay(250);
 
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 2, 80);
                 await Task.Delay(300);
 
                 // Final weak echo
+                if (!IsCurrentProfileGeneration(generation)) return;
                 ipc.TriggerEffectVibration(controllerType, 3, 1, 60);
                 await Task.Delay(100);
 
                 // Restore trigger after wave completes
-                SendCurrentTriggerProfile();
+                SendCurrentTriggerProfile(generation);
             });
         }
 
@@ -656,26 +888,37 @@ namespace GTFO_VR.Core.PSVR2
 
         internal static void DisableTriggers()
         {
-            if (!IpcClient.Instance().IsRunning)
-            {
-                return;
-            }
-
-            Log.Debug("PSVR2 haptics disable triggers.");
-            IpcClient.Instance().TriggerEffectDisable(EVRControllerType.Both);
+            BeginProfileTransition();
+            _glueGunCharging = false;
 
             _currentProfile = new PSVR2WeaponProfile
             {
                 WeaponName = "DEFAULT",
+                TriggerMode = PSVR2TriggerMode.Slope,
                 StartPosition = DEFAULT_START_POSITION,
                 EndPosition = DEFAULT_END_POSITION,
                 TriggerStrength = MIN_STRENGTH,
                 SlopeStartStrength = MIN_STRENGTH,
                 SlopeEndStrength = MIN_STRENGTH,
+                FeedbackPosition = FIRE_VIBRATION_POSITION,
+                FeedbackStrength = MIN_STRENGTH,
+                MultiPositionFeedback = null,
+                MultiPositionVibrationFrequency = DEFAULT_FIRE_FREQUENCY,
+                MultiPositionVibration = null,
+                FireVibrationPosition = FIRE_VIBRATION_POSITION,
                 FireAmplitude = MIN_STRENGTH,
                 FireFrequency = DEFAULT_FIRE_FREQUENCY,
+                DisableTriggerOnFire = true,
+                RestoreTriggerAfterFire = true,
                 FirePattern = null
             };
+
+            if (!IpcClient.Instance().IsRunning)
+            {
+                return;
+            }
+
+            DisableAllTriggers(IpcClient.Instance(), "disable triggers");
         }
     }
 }
