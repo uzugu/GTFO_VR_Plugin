@@ -2,6 +2,8 @@
 
 This folder contains configuration files for PSVR2 adaptive trigger haptics.
 
+For the direct Toolkit CAPI headset-rumble architecture, damage scaling, elevator sequencing, and extension rules, see [HEADSET_HAPTICS_IMPLEMENTATION.md](HEADSET_HAPTICS_IMPLEMENTATION.md).
+
 ## Requirements
 
 - **PSVR2 Toolkit**: https://github.com/BnuuySolutions/PSVR2Toolkit
