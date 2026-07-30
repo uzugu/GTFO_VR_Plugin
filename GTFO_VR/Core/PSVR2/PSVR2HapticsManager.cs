@@ -1,11 +1,13 @@
 using GTFO_VR.Events;
 using GTFO_VR.Core.VR_Input;
 using GTFO_VR.Util;
+using Gear;
 using PSVR2Toolkit.CAPI;
 using Player;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -27,6 +29,11 @@ namespace GTFO_VR.Core.PSVR2
         private const byte DAMAGE_POSITION = 5;
         private const byte DAMAGE_AMPLITUDE = 7;
         private const byte DAMAGE_FREQUENCY = 220;
+        private const float DAMAGE_FOR_MAX_HMD_RUMBLE = 10f;
+        private const byte HMD_DAMAGE_MIN_FREQUENCY = 18;
+        private const byte HMD_DAMAGE_MAX_FREQUENCY = 25;
+        private const int HMD_DAMAGE_MIN_DURATION_MS = 180;
+        private const int HMD_DAMAGE_MAX_DURATION_MS = 450;
 
         private const byte FIRE_VIBRATION_POSITION = 3;
         private const byte DEFAULT_FIRE_FREQUENCY = 160;
@@ -59,15 +66,38 @@ namespace GTFO_VR.Core.PSVR2
             FireFrequency = DEFAULT_FIRE_FREQUENCY,
             DisableTriggerOnFire = true,
             RestoreTriggerAfterFire = true,
-            FirePattern = null
+            FirePattern = null,
+            PcmEnabled = true,
+            PcmKickFrequency = 75f,
+            PcmSnapFrequency = 190f,
+            PcmAmplitude = 0.8f,
+            PcmDurationMs = 60,
+            PcmSupportHandScale = 0.5f,
+            PcmEnergySweep = false,
+            RecoilPushPosition = 1,
+            RecoilPushStrength = 7,
+            RecoilPushDurationMs = 28,
+            RecoilAftershockDurationMs = 18,
+            RecoilAftershockGapMs = 15,
+            RecoilAftershockPosition = 1,
+            RecoilAftershockStrength = 0,
+            RecoilReleaseDelayMs = 15,
+            RecoilDecayStepDurationMs = 22,
+            RecoilDecayMinimumStrength = 5,
+            RecoilVibrationPosition = 1
         };
 
         private static bool _initialized;
         private static int _profileGeneration;
+        private static int _firePulseGeneration;
+        private static int _hmdRumbleGeneration;
+        private static readonly object _hmdRumbleSync = new object();
+        private static byte _elevatorHmdFrequency;
+        private static bool _hmdOverrideActive;
 
         private static void SendCurrentTriggerProfile()
         {
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
             var mainController = GetMainControllerType();
             SendTriggerProfile(ipc, mainController, _currentProfile);
             DisableOffHandTrigger(ipc);
@@ -86,6 +116,7 @@ namespace GTFO_VR.Core.PSVR2
         private static int BeginProfileTransition()
         {
             _profileGeneration++;
+            Interlocked.Increment(ref _firePulseGeneration);
             return _profileGeneration;
         }
 
@@ -94,13 +125,13 @@ namespace GTFO_VR.Core.PSVR2
             return generation == _profileGeneration;
         }
 
-        private static void DisableAllTriggers(IpcClient ipc, string reason)
+        private static void DisableAllTriggers(PSVR2HapticsBackend ipc, string reason)
         {
             Log.Debug($"PSVR2 haptics clear triggers: {reason}.");
             ipc.TriggerEffectDisable(EVRControllerType.Both);
         }
 
-        private static void SendTriggerProfile(IpcClient ipc, EVRControllerType controllerType, PSVR2WeaponProfile profile)
+        private static void SendTriggerProfile(PSVR2HapticsBackend ipc, EVRControllerType controllerType, PSVR2WeaponProfile profile)
         {
             switch (profile.TriggerMode)
             {
@@ -191,7 +222,7 @@ namespace GTFO_VR.Core.PSVR2
             return GetControllerTypeForHand(Controllers.offHandControllerType);
         }
 
-        private static void DisableOffHandTrigger(IpcClient ipc)
+        private static void DisableOffHandTrigger(PSVR2HapticsBackend ipc)
         {
             var offHandController = GetOffHandControllerType();
             if (offHandController != GetMainControllerType())
@@ -226,8 +257,9 @@ namespace GTFO_VR.Core.PSVR2
 
             VRConfig.configUsePSVR2Haptics.SettingChanged -= OnConfigChanged;
             Controllers.HandednessSwitched -= OnHandednessSwitched;
+            StopElevatorFeedback();
             DisableTriggers();
-            IpcClient.Instance().Stop();
+            PSVR2HapticsBackend.Instance().Stop();
             Log.Info("PSVR2 haptics manager shut down.");
             _initialized = false;
         }
@@ -253,25 +285,26 @@ namespace GTFO_VR.Core.PSVR2
             {
                 Log.Info("PSVR2 haptics enabled. Attempting to connect to PSVR2 Toolkit...");
 
-                if (!EnsureIpcStarted())
+                if (!EnsureBackendStarted())
                 {
                     Log.Warning("PSVR2 Toolkit connection could not be started. Haptics will be skipped until the service is available.");
                 }
-                else if (IpcClient.Instance().IsRunning)
+                else if (PSVR2HapticsBackend.Instance().IsRunning)
                 {
-                    Log.Info("PSVR2 Toolkit already connected.");
+                    Log.Info($"PSVR2 Toolkit connected through {PSVR2HapticsBackend.Instance().BackendName}.");
                     ApplyCurrentWeaponProfile();
                 }
             }
             else
             {
-                if (IpcClient.Instance().IsRunning)
+                if (PSVR2HapticsBackend.Instance().IsRunning)
                 {
                     Log.Info("PSVR2 haptics disabled; disconnecting from PSVR2 Toolkit.");
                 }
 
+                StopElevatorFeedback();
                 DisableTriggers();
-                IpcClient.Instance().Stop();
+                PSVR2HapticsBackend.Instance().Stop();
             }
         }
 
@@ -282,7 +315,7 @@ namespace GTFO_VR.Core.PSVR2
                 return false;
             }
 
-            if (!IpcClient.Instance().IsRunning && !EnsureIpcStarted())
+            if (!PSVR2HapticsBackend.Instance().IsRunning && !EnsureBackendStarted())
             {
                 Log.Debug("PSVR2 haptics skipped: toolkit not connected.");
                 return false;
@@ -291,20 +324,134 @@ namespace GTFO_VR.Core.PSVR2
             return true;
         }
 
-        private static bool EnsureIpcStarted()
+        private static bool EnsureBackendStarted()
         {
-            var ipc = IpcClient.Instance();
-            if (ipc.IsRunning)
+            var backend = PSVR2HapticsBackend.Instance();
+            if (backend.IsRunning)
             {
                 return true;
             }
 
-            if (!ipc.Start())
+            if (!backend.Start())
             {
                 return false;
             }
 
-            Log.Info("PSVR2 Toolkit connection established.");
+            Log.Info($"PSVR2 Toolkit connection established through {backend.BackendName}.");
+            return true;
+        }
+
+        internal static bool UpdateElevatorFeedback(float controllerIntensity, float normalizedSpeed, byte hmdFrequency)
+        {
+            if (!EnsureReady())
+            {
+                return false;
+            }
+
+            var backend = PSVR2HapticsBackend.Instance();
+            bool pcmActive = backend.SetElevatorPcm(
+                Mathf.Clamp01(controllerIntensity),
+                Mathf.Clamp01(normalizedSpeed));
+            SetElevatorHmdFrequency(hmdFrequency);
+            return pcmActive;
+        }
+
+        internal static bool TriggerElevatorImpact(
+            float controllerAmplitude,
+            int controllerDurationMs,
+            float kickFrequency,
+            float snapFrequency,
+            byte hmdFrequency,
+            int hmdDurationMs,
+            string label,
+            bool logPulse = true)
+        {
+            if (!EnsureReady())
+            {
+                return false;
+            }
+
+            var backend = PSVR2HapticsBackend.Instance();
+            bool pcmPlayed = backend.PlayElevatorImpactPcm(
+                Mathf.Clamp01(controllerAmplitude),
+                controllerDurationMs,
+                kickFrequency,
+                snapFrequency);
+
+            if (backend.SupportsHmdRumble && hmdFrequency > 0 && hmdDurationMs > 0)
+            {
+                if (StartHmdOverride(hmdFrequency, hmdDurationMs, label))
+                {
+                    if (logPulse)
+                    {
+                        Log.Info($"PSVR2 elevator HMD pulse submitted: {label}, {hmdFrequency}Hz for {hmdDurationMs}ms.");
+                    }
+                }
+            }
+
+            return pcmPlayed;
+        }
+
+        internal static void StopElevatorFeedback()
+        {
+            var backend = PSVR2HapticsBackend.Instance();
+            backend.StopElevatorPcm();
+            SetElevatorHmdFrequency(0);
+        }
+
+        private static void SetElevatorHmdFrequency(byte frequency)
+        {
+            lock (_hmdRumbleSync)
+            {
+                if (_elevatorHmdFrequency == frequency)
+                {
+                    return;
+                }
+
+                _elevatorHmdFrequency = frequency;
+                if (!_hmdOverrideActive)
+                {
+                    PSVR2HapticsBackend.Instance().SetHmdRumble(frequency);
+                }
+            }
+        }
+
+        private static bool StartHmdOverride(byte frequency, int durationMs, string label)
+        {
+            int rumbleGeneration;
+            lock (_hmdRumbleSync)
+            {
+                _hmdOverrideActive = true;
+                rumbleGeneration = Interlocked.Increment(ref _hmdRumbleGeneration);
+                if (!PSVR2HapticsBackend.Instance().SetHmdRumble(frequency))
+                {
+                    _hmdOverrideActive = false;
+                    return false;
+                }
+            }
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(durationMs);
+                lock (_hmdRumbleSync)
+                {
+                    if (rumbleGeneration != _hmdRumbleGeneration)
+                    {
+                        return;
+                    }
+
+                    _hmdOverrideActive = false;
+                    byte restoreFrequency = _elevatorHmdFrequency;
+                    bool restored = PSVR2HapticsBackend.Instance().SetHmdRumble(restoreFrequency);
+                    if (!string.IsNullOrEmpty(label))
+                    {
+                        Log.Info(restored
+                            ? $"PSVR2 HMD pulse completed: {label}; restored elevator frequency to {restoreFrequency}Hz."
+                            : $"PSVR2 HMD pulse restore command failed: {label}.");
+                    }
+                }
+            });
+
             return true;
         }
 
@@ -341,7 +488,25 @@ namespace GTFO_VR.Core.PSVR2
                 FireFrequency = DEFAULT_FIRE_FREQUENCY,
                 DisableTriggerOnFire = true,
                 RestoreTriggerAfterFire = true,
-                FirePattern = null
+                FirePattern = null,
+                PcmEnabled = true,
+                PcmKickFrequency = 75f,
+                PcmSnapFrequency = 190f,
+                PcmAmplitude = 0.8f,
+                PcmDurationMs = 60,
+                PcmSupportHandScale = 0.5f,
+                PcmEnergySweep = false,
+                RecoilPushPosition = 1,
+                RecoilPushStrength = 0,
+                RecoilPushDurationMs = 0,
+                RecoilAftershockDurationMs = 18,
+                RecoilAftershockGapMs = 15,
+                RecoilAftershockPosition = 1,
+                RecoilAftershockStrength = 0,
+                RecoilReleaseDelayMs = 15,
+                RecoilDecayStepDurationMs = 22,
+                RecoilDecayMinimumStrength = 5,
+                RecoilVibrationPosition = 1
             };
 
             if (item == null)
@@ -351,6 +516,7 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var data = WeaponArchetypeVRData.GetVRWeaponHapticData(item.PublicName);
+            ApplyPcmFamilyDefaults(item, ref profile);
             if (data != null)
             {
                 float kickStrength = data.kickPower / 255f;
@@ -361,10 +527,418 @@ namespace GTFO_VR.Core.PSVR2
                 profile.SlopeEndStrength = profile.TriggerStrength;
                 profile.FireAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(MIN_STRENGTH, MAX_STRENGTH, rumbleStrength)), MIN_STRENGTH, MAX_STRENGTH);
                 profile.FireFrequency = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(60f, 200f, rumbleStrength)), 0, 255);
+                profile.PcmAmplitude = Mathf.Max(profile.PcmAmplitude, Mathf.Lerp(0.75f, 1f, rumbleStrength));
             }
 
             PSVR2HapticsConfig.ApplyOverrides(item.PublicName, item.ArchetypeName, GetArchetypeId(item), ref profile);
+            ApplyAdaptiveTriggerFamilyTuning(item, ref profile);
             return profile;
+        }
+
+        private static void ApplyAdaptiveTriggerFamilyTuning(ItemEquippable item, ref PSVR2WeaponProfile profile)
+        {
+            string identity = $"{item?.PublicName} {item?.ArchetypeName}".ToLowerInvariant();
+            object archetypeData = TryGetMemberValue(item, "ArchetypeData");
+            string fireMode = Convert.ToString(TryGetMemberValue(archetypeData, "FireMode")) ?? string.Empty;
+            float shotDelay = TryGetFloat(TryGetMemberValue(archetypeData, "ShotDelay"));
+            float damagePerShot = TryGetFloat(TryGetMemberValue(archetypeData, "Damage"));
+            int? archetypeId = GetArchetypeId(item);
+
+            bool namedAutomatic = ContainsAny(
+                identity,
+                "smg",
+                "submachine",
+                "machine pistol",
+                "machine gun",
+                "machinegun",
+                "assault rifle",
+                "bullpup rifle",
+                "automatic",
+                "auto rifle",
+                "carbine");
+            bool enumAutomatic = fireMode.Equals("2", StringComparison.InvariantCultureIgnoreCase);
+            bool rapidFire = shotDelay > 0f && shotDelay <= 0.12f;
+            profile.IsAutomatic =
+                fireMode.Equals("Auto", StringComparison.InvariantCultureIgnoreCase) ||
+                enumAutomatic ||
+                namedAutomatic ||
+                rapidFire;
+            profile.ShotDelaySeconds = shotDelay;
+
+            bool isShotgun = item is Shotgun || identity.Contains("shotgun");
+            bool isSniper = identity.Contains("sniper");
+            bool isTechman = identity.Contains("techman");
+            bool isAutoCannon = identity.Contains("auto cannon") || identity.Contains("autocannon") || identity.Contains("klust");
+            bool isHeavy = ContainsAny(identity, "sniper", "heavy", "cannon", "machine gun", "machinegun");
+            bool isPistol = ContainsAny(identity, "pistol", "revolver", "handgun");
+            bool isPrecisionRifle = ContainsAny(identity, "precision rifle", "precisionrifle", "precision_rifle");
+            bool isRevolver = identity.Contains("revolver");
+            bool isHelPistol =
+                isPistol &&
+                ContainsAny(identity, "hel ", "hel_", "hel-", "helrevolver", "hybrid electrothermal");
+            bool isHelFamily =
+                ContainsAny(identity, "hel gun", "helgun", "hel_gun", "hel rifle", "helrifle", "hel_rifle", "hybrid electrothermal") ||
+                isHelPistol ||
+                archetypeId == 21 ||
+                archetypeId == 65;
+            profile.HasPostBreakResistance = isHelFamily || profile.PcmEnergySweep;
+
+            // JSON profiles still define the character of each vibration, but shooting
+            // PCM needs a strong, perceptible floor across the complete weapon roster.
+            profile.PcmAmplitude = Math.Max(profile.PcmAmplitude, profile.IsAutomatic ? 0.9f : 0.95f);
+            profile.PcmDurationMs = Math.Max(profile.PcmDurationMs, profile.IsAutomatic ? 50 : 85);
+            profile.PcmSupportHandScale = Math.Max(profile.PcmSupportHandScale, 0.7f);
+
+            byte pullStrength = (byte)Mathf.Clamp(profile.TriggerStrength, 4, 6);
+            byte pullStart = 3;
+            byte pullEnd = 5;
+
+            if (isPistol)
+            {
+                pullStrength = (byte)Mathf.Clamp(profile.TriggerStrength, 4, 5);
+                pullStart = 2;
+            }
+            else if (isShotgun)
+            {
+                pullStrength = 7;
+                pullEnd = 6;
+            }
+            else if (isHeavy)
+            {
+                pullStrength = 6;
+                pullEnd = 6;
+            }
+
+            profile.StartPosition = pullStart;
+            profile.EndPosition = pullEnd;
+            profile.TriggerStrength = pullStrength;
+
+            if (profile.HasPostBreakResistance)
+            {
+                byte breakStrength = (byte)Mathf.Clamp(Math.Max(7, pullStrength + 1), 1, MAX_STRENGTH);
+                byte postStrength = (byte)Mathf.Clamp(Math.Max(2, pullStrength - 2), 1, 5);
+                profile.TriggerMode = PSVR2TriggerMode.MultiPosition;
+                profile.MultiPositionFeedback = new byte[]
+                {
+                    0, 0, 1,
+                    (byte)Math.Max(3, breakStrength - 3),
+                    breakStrength,
+                    breakStrength,
+                    postStrength,
+                    postStrength,
+                    (byte)Math.Max(1, postStrength - 1),
+                    1
+                };
+            }
+            else if (profile.TriggerMode != PSVR2TriggerMode.Off)
+            {
+                // Weapon mode gives free take-up, a defined wall, and free travel
+                // after the trigger passes the breakpoint.
+                profile.TriggerMode = PSVR2TriggerMode.Weapon;
+            }
+
+            if (profile.RecoilPushStrength == 0)
+            {
+                int statStrength = Math.Max(profile.FireAmplitude, profile.TriggerStrength);
+                if (damagePerShot >= 20f)
+                {
+                    statStrength += 2;
+                }
+                else if (damagePerShot >= 8f)
+                {
+                    statStrength++;
+                }
+                if (profile.IsAutomatic)
+                {
+                    statStrength++;
+                }
+                if (isHeavy || isShotgun)
+                {
+                    statStrength = MAX_STRENGTH;
+                }
+                profile.RecoilPushStrength = (byte)Mathf.Clamp(statStrength, 6, MAX_STRENGTH);
+            }
+
+            if (profile.RecoilPushPosition == 0)
+            {
+                profile.RecoilPushPosition = 1;
+            }
+
+            if (profile.RecoilPushDurationMs <= 0)
+            {
+                int durationMs = Mathf.Clamp(Mathf.RoundToInt(profile.PcmDurationMs * 0.4f), 18, 45);
+                if (profile.IsAutomatic && shotDelay > 0f)
+                {
+                    durationMs = Math.Min(durationMs, Mathf.Clamp(Mathf.RoundToInt(shotDelay * 420f), 14, 32));
+                }
+                profile.RecoilPushDurationMs = durationMs;
+            }
+
+            profile.RecoilReleaseKick = isTechman || isShotgun || isSniper || isPrecisionRifle || isRevolver || isHelFamily;
+            profile.RecoilAftershock = isTechman || isShotgun || isSniper || isPrecisionRifle || isRevolver || isHelFamily;
+            profile.RecoilDecayTail = isHelFamily;
+            profile.RecoilReleaseDelayMs = 15;
+            profile.RecoilDecayStepDurationMs = 22;
+            profile.RecoilDecayMinimumStrength = 5;
+            profile.RecoilAftershockGapMs = 15;
+            profile.RecoilAftershockPosition = 1;
+            profile.RecoilAftershockStrength = 0;
+            profile.RecoilVibrationTail = false;
+            profile.RecoilVibrationPosition = 1;
+            if (isTechman)
+            {
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = Math.Max(profile.RecoilPushDurationMs, 26);
+                profile.RecoilReleaseDelayMs = 15;
+                profile.RecoilAftershock = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = new List<PSVR2FirePatternStep>
+                {
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 110, DelayMs = 30 },
+                    new PSVR2FirePatternStep { Amplitude = 7, Frequency = 85, DelayMs = 25 },
+                    new PSVR2FirePatternStep { Amplitude = 5, Frequency = 60, DelayMs = 20 }
+                };
+            }
+            if (isAutoCannon)
+            {
+                profile.RecoilPushPosition = 0;
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = 45;
+                profile.RecoilReleaseDelayMs = 20;
+                profile.RecoilAftershock = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = new List<PSVR2FirePatternStep>
+                {
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 105, DelayMs = 55 },
+                    new PSVR2FirePatternStep { Amplitude = 7, Frequency = 80, DelayMs = 55 },
+                    new PSVR2FirePatternStep { Amplitude = 5, Frequency = 55, DelayMs = 50 }
+                };
+            }
+            if (isShotgun)
+            {
+                profile.RecoilPushPosition = 0;
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = 50;
+                profile.RecoilReleaseDelayMs = 20;
+                profile.RecoilAftershock = false;
+                profile.RecoilDecayTail = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = new List<PSVR2FirePatternStep>
+                {
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 95, DelayMs = 75 },
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 70, DelayMs = 55 },
+                    new PSVR2FirePatternStep { Amplitude = 6, Frequency = 48, DelayMs = 45 }
+                };
+            }
+            else if (isSniper)
+            {
+                profile.RecoilPushPosition = 0;
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = 55;
+                profile.RecoilReleaseDelayMs = 20;
+                profile.RecoilAftershock = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = new List<PSVR2FirePatternStep>
+                {
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 75, DelayMs = 90 },
+                    new PSVR2FirePatternStep { Amplitude = 7, Frequency = 55, DelayMs = 100 },
+                    new PSVR2FirePatternStep { Amplitude = 5, Frequency = 38, DelayMs = 110 },
+                    new PSVR2FirePatternStep { Amplitude = 3, Frequency = 25, DelayMs = 120 }
+                };
+            }
+            else if (isPrecisionRifle)
+            {
+                profile.RecoilPushPosition = 0;
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = 42;
+                profile.RecoilReleaseDelayMs = 20;
+                profile.RecoilAftershock = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = new List<PSVR2FirePatternStep>
+                {
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 95, DelayMs = 50 },
+                    new PSVR2FirePatternStep { Amplitude = 7, Frequency = 70, DelayMs = 55 },
+                    new PSVR2FirePatternStep { Amplitude = 5, Frequency = 48, DelayMs = 55 }
+                };
+            }
+            else if (isHeavy && !isTechman && !isAutoCannon && !isHelFamily)
+            {
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilReleaseDelayMs = profile.IsAutomatic ? 15 : 20;
+                profile.RecoilPushDurationMs = profile.IsAutomatic ? 32 : 50;
+                profile.RecoilAftershock = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = profile.IsAutomatic
+                    ? new List<PSVR2FirePatternStep>
+                    {
+                        new PSVR2FirePatternStep { Amplitude = 8, Frequency = 95, DelayMs = 40 },
+                        new PSVR2FirePatternStep { Amplitude = 7, Frequency = 70, DelayMs = 35 },
+                        new PSVR2FirePatternStep { Amplitude = 5, Frequency = 50, DelayMs = 30 }
+                    }
+                    : new List<PSVR2FirePatternStep>
+                    {
+                        new PSVR2FirePatternStep { Amplitude = 8, Frequency = 80, DelayMs = 70 },
+                        new PSVR2FirePatternStep { Amplitude = 7, Frequency = 60, DelayMs = 80 },
+                        new PSVR2FirePatternStep { Amplitude = 5, Frequency = 42, DelayMs = 90 }
+                    };
+            }
+            else if (isRevolver)
+            {
+                profile.RecoilPushPosition = 0;
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = 42;
+                profile.RecoilReleaseDelayMs = 20;
+                profile.RecoilAftershock = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = new List<PSVR2FirePatternStep>
+                {
+                    new PSVR2FirePatternStep { Amplitude = 8, Frequency = 105, DelayMs = 45 },
+                    new PSVR2FirePatternStep { Amplitude = 7, Frequency = 72, DelayMs = 45 },
+                    new PSVR2FirePatternStep { Amplitude = 5, Frequency = 48, DelayMs = 40 }
+                };
+            }
+            if (isHelFamily)
+            {
+                profile.RecoilPushPosition = 0;
+                profile.RecoilPushStrength = MAX_STRENGTH;
+                profile.RecoilPushDurationMs = isHelPistol ? 50 : identity.Contains("rifle") ? 70 : 60;
+                profile.RecoilReleaseDelayMs = 20;
+                profile.RecoilAftershock = false;
+                profile.RecoilDecayTail = false;
+                profile.RecoilVibrationTail = true;
+                profile.RecoilVibrationPosition = 1;
+                profile.FirePattern = isHelPistol
+                    ? new List<PSVR2FirePatternStep>
+                    {
+                        new PSVR2FirePatternStep { Amplitude = 8, Frequency = 85, DelayMs = 55 },
+                        new PSVR2FirePatternStep { Amplitude = 7, Frequency = 65, DelayMs = 65 },
+                        new PSVR2FirePatternStep { Amplitude = 6, Frequency = 48, DelayMs = 75 },
+                        new PSVR2FirePatternStep { Amplitude = 4, Frequency = 32, DelayMs = 85 }
+                    }
+                    : new List<PSVR2FirePatternStep>
+                    {
+                        new PSVR2FirePatternStep { Amplitude = 8, Frequency = 80, DelayMs = 55 },
+                        new PSVR2FirePatternStep { Amplitude = 7, Frequency = 65, DelayMs = 70 },
+                        new PSVR2FirePatternStep { Amplitude = 6, Frequency = 52, DelayMs = 85 },
+                        new PSVR2FirePatternStep { Amplitude = 5, Frequency = 42, DelayMs = 100 },
+                        new PSVR2FirePatternStep { Amplitude = 4, Frequency = 32, DelayMs = 120 },
+                        new PSVR2FirePatternStep { Amplitude = 3, Frequency = 24, DelayMs = 130 }
+                    };
+            }
+
+            profile.DisableTriggerOnFire = false;
+            profile.RestoreTriggerAfterFire = true;
+        }
+
+        private static void ApplyPcmFamilyDefaults(ItemEquippable item, ref PSVR2WeaponProfile profile)
+        {
+            profile.PcmEnabled = true;
+            profile.PcmKickFrequency = 75f;
+            profile.PcmSnapFrequency = 190f;
+            profile.PcmAmplitude = 0.92f;
+            profile.PcmDurationMs = 80;
+            profile.PcmSupportHandScale = 0.65f;
+            profile.PcmEnergySweep = false;
+
+            string identity = $"{item?.PublicName} {item?.ArchetypeName}".ToLowerInvariant();
+            object archetypeData = TryGetMemberValue(item, "ArchetypeData");
+            string fireMode = Convert.ToString(TryGetMemberValue(archetypeData, "FireMode")) ?? string.Empty;
+            float shotDelay = TryGetFloat(TryGetMemberValue(archetypeData, "ShotDelay"));
+
+            if (item is Shotgun || identity.Contains("shotgun"))
+            {
+                profile.PcmKickFrequency = 48f;
+                profile.PcmSnapFrequency = 150f;
+                profile.PcmAmplitude = 1f;
+                profile.PcmDurationMs = 150;
+                profile.PcmSupportHandScale = 0.78f;
+                return;
+            }
+
+            if (ContainsAny(identity, "omneco", "energy", "plasma", "beam", "thermal", "techman"))
+            {
+                profile.PcmKickFrequency = 90f;
+                profile.PcmSnapFrequency = 280f;
+                profile.PcmAmplitude = 0.95f;
+                profile.PcmDurationMs = 115;
+                profile.PcmSupportHandScale = 0.72f;
+                profile.PcmEnergySweep = true;
+                return;
+            }
+
+            if (ContainsAny(identity, "sniper", "heavy", "cannon", "machine gun", "machinegun"))
+            {
+                profile.PcmKickFrequency = 60f;
+                profile.PcmSnapFrequency = 170f;
+                profile.PcmAmplitude = 1f;
+                profile.PcmDurationMs = 120;
+                profile.PcmSupportHandScale = 0.75f;
+                return;
+            }
+
+            if (ContainsAny(identity, "pistol", "revolver", "handgun"))
+            {
+                profile.PcmKickFrequency = 90f;
+                profile.PcmSnapFrequency = 220f;
+                profile.PcmAmplitude = 0.86f;
+                profile.PcmDurationMs = 65;
+                profile.PcmSupportHandScale = 0.55f;
+                return;
+            }
+
+            bool fastAutomatic = fireMode.Equals("Auto", StringComparison.InvariantCultureIgnoreCase) &&
+                shotDelay > 0f &&
+                shotDelay <= 0.1f;
+            if (ContainsAny(identity, "smg", "machine pistol") || fastAutomatic)
+            {
+                profile.PcmKickFrequency = 105f;
+                profile.PcmSnapFrequency = 240f;
+                profile.PcmAmplitude = 0.78f;
+                profile.PcmDurationMs = 42;
+                profile.PcmSupportHandScale = 0.62f;
+            }
+        }
+
+        private static bool ContainsAny(string value, params string[] candidates)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
+            foreach (string candidate in candidates)
+            {
+                if (value.Contains(candidate))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static float TryGetFloat(object value)
+        {
+            if (value == null)
+            {
+                return 0f;
+            }
+
+            try
+            {
+                return Convert.ToSingle(value);
+            }
+            catch
+            {
+                return 0f;
+            }
         }
 
         private static int? GetArchetypeId(ItemEquippable item)
@@ -460,118 +1034,171 @@ namespace GTFO_VR.Core.PSVR2
 
             var archetypeId = item != null ? GetArchetypeId(item) : null;
             bool hasCustomProfile = item != null && PSVR2HapticsConfig.HasProfile(item.PublicName, item.ArchetypeName, archetypeId);
-            Log.Info($"PSVR2 weapon equipped: '{item?.PublicName ?? "(unknown)"}' | Archetype='{item?.ArchetypeName ?? "(unknown)"}' | ArchetypeId={archetypeId?.ToString() ?? "(none)"} | HasCustomProfile={hasCustomProfile} | Mode={_currentProfile.TriggerMode} | Strength={_currentProfile.TriggerStrength} | StartPos={_currentProfile.StartPosition} | Freq={_currentProfile.FireFrequency}");
+            Log.Info($"PSVR2 weapon equipped: '{item?.PublicName ?? "(unknown)"}' | Archetype='{item?.ArchetypeName ?? "(unknown)"}' | ArchetypeId={archetypeId?.ToString() ?? "(none)"} | HasCustomProfile={hasCustomProfile} | Mode={_currentProfile.TriggerMode} | Automatic={_currentProfile.IsAutomatic} | PostBreak={_currentProfile.HasPostBreakResistance} | Pull={_currentProfile.StartPosition}-{_currentProfile.EndPosition}@{_currentProfile.TriggerStrength} | RecoilPush={_currentProfile.RecoilPushPosition}@{_currentProfile.RecoilPushStrength}/{_currentProfile.RecoilPushDurationMs}ms releaseKick={_currentProfile.RecoilReleaseKick} aftershock={_currentProfile.RecoilAftershock}/{_currentProfile.RecoilAftershockDurationMs}ms decayTail={_currentProfile.RecoilDecayTail} | PCM={_currentProfile.PcmEnabled} {_currentProfile.PcmKickFrequency:F0}/{_currentProfile.PcmSnapFrequency:F0}Hz amp={_currentProfile.PcmAmplitude:F2} duration={_currentProfile.PcmDurationMs}ms sweep={_currentProfile.PcmEnergySweep}");
 
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
             var mainController = GetMainControllerType();
             DisableAllTriggers(ipc, $"weapon profile switch to '{item?.PublicName ?? "(unknown)"}'");
             SendTriggerProfile(ipc, mainController, _currentProfile);
             DisableOffHandTrigger(ipc);
         }
 
-        internal static void TriggerWeaponFire(float normalizedIntensity, bool aimingTwoHanded)
+        internal static bool TriggerWeaponFire(float normalizedIntensity, bool aimingTwoHanded)
         {
             if (!EnsureReady())
             {
-                return;
+                return false;
             }
 
             // Skip weapon fire haptics if C-Foam charging is active (to preserve 40Hz charging vibration)
             if (_glueGunCharging)
             {
-                return;
+                return false;
             }
 
             var controllerType = GetMainControllerType();
-            int generation = _profileGeneration;
-
-            if (_currentProfile.FirePattern != null && _currentProfile.FirePattern.Count > 0)
+            var offHandControllerType = GetOffHandControllerType();
+            var backend = PSVR2HapticsBackend.Instance();
+            bool pcmPlayed = backend.PlayWeaponFirePcm(
+                _currentProfile,
+                controllerType,
+                offHandControllerType,
+                aimingTwoHanded,
+                normalizedIntensity);
+            if (_currentProfile.TriggerMode == PSVR2TriggerMode.Off)
             {
-                var pattern = new List<PSVR2FirePatternStep>(_currentProfile.FirePattern);
-                byte patternFireVibrationPosition = _currentProfile.FireVibrationPosition;
-                bool patternRestoreTriggerAfterFire = _currentProfile.RestoreTriggerAfterFire;
-                bool patternDisableTriggerOnFire = _currentProfile.DisableTriggerOnFire;
+                return pcmPlayed;
+            }
 
+            int generation = _profileGeneration;
+            int pulseGeneration = Interlocked.Increment(ref _firePulseGeneration);
+            float scaledIntensity = Mathf.Clamp01(normalizedIntensity * INTENSITY_MULTIPLIER);
+            scaledIntensity = Mathf.Max(scaledIntensity, 0.65f);
+            byte pushStrength = (byte)Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Lerp(Math.Max(5, _currentProfile.RecoilPushStrength - 2), _currentProfile.RecoilPushStrength, scaledIntensity)),
+                5,
+                MAX_STRENGTH);
+            byte pushPosition = _currentProfile.RecoilPushPosition;
+            int pushDurationMs = _currentProfile.RecoilPushDurationMs;
+            bool releaseKick = _currentProfile.RecoilReleaseKick;
+            bool aftershock = _currentProfile.RecoilAftershock;
+            int aftershockDurationMs = _currentProfile.RecoilAftershockDurationMs;
+            int aftershockGapMs = _currentProfile.RecoilAftershockGapMs;
+            byte aftershockPosition = _currentProfile.RecoilAftershockPosition;
+            byte configuredAftershockStrength = _currentProfile.RecoilAftershockStrength;
+            bool decayTail = _currentProfile.RecoilDecayTail;
+            int releaseDelayMs = _currentProfile.RecoilReleaseDelayMs;
+            int decayStepDurationMs = _currentProfile.RecoilDecayStepDurationMs;
+            byte decayMinimumStrength = _currentProfile.RecoilDecayMinimumStrength;
+            bool vibrationTail = _currentProfile.RecoilVibrationTail &&
+                _currentProfile.FirePattern != null &&
+                _currentProfile.FirePattern.Count > 0;
+            byte vibrationPosition = _currentProfile.RecoilVibrationPosition;
+            var vibrationPattern = vibrationTail
+                ? new List<PSVR2FirePatternStep>(_currentProfile.FirePattern)
+                : null;
+
+            Log.Debug(
+                $"PSVR2 trigger recoil push: position={pushPosition}, strength={pushStrength}, duration={pushDurationMs}ms, automatic={_currentProfile.IsAutomatic}, releaseKick={releaseKick}/{releaseDelayMs}ms, aftershock={aftershock}/{aftershockGapMs}+{aftershockDurationMs}ms@{configuredAftershockStrength}, decayTail={decayTail}/{decayStepDurationMs}ms-to-{decayMinimumStrength}, vibrationTail={vibrationTail}/{vibrationPattern?.Count ?? 0}");
+
+            if (releaseKick)
+            {
+                // Release for at least one controller output frame so the motor arm
+                // physically unloads before it re-engages and pushes the finger back.
+                // This creates an actual mechanical kick instead of another static wall.
+                backend.TriggerEffectDisable(controllerType);
                 Task.Run(async () =>
                 {
-                    int previousDelayMs = 0;
-                    foreach (var step in pattern)
+                    await Task.Delay(releaseDelayMs);
+                    if (!IsCurrentProfileGeneration(generation) || pulseGeneration != _firePulseGeneration)
                     {
-                        // Calculate actual delay between steps (pattern delays are cumulative timestamps)
-                        int actualDelay = step.DelayMs - previousDelayMs;
-                        if (actualDelay > 0)
-                        {
-                            await Task.Delay(actualDelay);
-                        }
-                        previousDelayMs = step.DelayMs;
+                        return;
+                    }
 
-                        if (!IsCurrentProfileGeneration(generation))
+                    PSVR2HapticsBackend.Instance().TriggerEffectFeedback(controllerType, pushPosition, pushStrength);
+                    await Task.Delay(pushDurationMs);
+                    if (!IsCurrentProfileGeneration(generation) || pulseGeneration != _firePulseGeneration)
+                    {
+                        return;
+                    }
+
+                    if (vibrationTail)
+                    {
+                        foreach (var step in vibrationPattern)
+                        {
+                            PSVR2HapticsBackend.Instance().TriggerEffectVibration(
+                                controllerType,
+                                vibrationPosition,
+                                step.Amplitude,
+                                step.Frequency);
+                            await Task.Delay(Math.Max(10, step.DelayMs));
+                            if (!IsCurrentProfileGeneration(generation) || pulseGeneration != _firePulseGeneration)
+                            {
+                                return;
+                            }
+                        }
+                    }
+
+                    if (aftershock)
+                    {
+                        PSVR2HapticsBackend.Instance().TriggerEffectDisable(controllerType);
+                        await Task.Delay(aftershockGapMs);
+                        if (!IsCurrentProfileGeneration(generation) || pulseGeneration != _firePulseGeneration)
                         {
                             return;
                         }
 
-                        IpcClient.Instance().TriggerEffectVibration(controllerType, patternFireVibrationPosition, step.Amplitude, step.Frequency);
+                        byte aftershockStrength = configuredAftershockStrength > 0
+                            ? configuredAftershockStrength
+                            : (byte)Math.Max(6, pushStrength - 1);
+                        PSVR2HapticsBackend.Instance().TriggerEffectFeedback(
+                            controllerType,
+                            aftershockPosition,
+                            aftershockStrength);
+                        await Task.Delay(aftershockDurationMs);
+                        if (!IsCurrentProfileGeneration(generation) || pulseGeneration != _firePulseGeneration)
+                        {
+                            return;
+                        }
                     }
 
-                    if (!patternRestoreTriggerAfterFire)
+                    if (decayTail)
                     {
-                        return;
-                    }
+                        for (byte tailStrength = (byte)Math.Max(decayMinimumStrength, pushStrength - 1);
+                            tailStrength >= decayMinimumStrength;
+                            tailStrength--)
+                        {
+                            byte tailPosition = (byte)Math.Min(4, 8 - tailStrength);
+                            PSVR2HapticsBackend.Instance().TriggerEffectFeedback(controllerType, tailPosition, tailStrength);
+                            await Task.Delay(decayStepDurationMs);
+                            if (!IsCurrentProfileGeneration(generation) || pulseGeneration != _firePulseGeneration)
+                            {
+                                return;
+                            }
 
-                    await Task.Delay(40);
-                    if (!IsCurrentProfileGeneration(generation))
-                    {
-                        return;
+                            if (tailStrength == decayMinimumStrength)
+                            {
+                                break;
+                            }
+                        }
                     }
-
-                    if (patternDisableTriggerOnFire)
-                    {
-                        IpcClient.Instance().TriggerEffectDisable(controllerType);
-                    }
-                    await Task.Delay(60);
                     SendCurrentTriggerProfile(generation);
                 });
-                return;
+                return pcmPlayed;
             }
 
-            float scaledIntensity = Mathf.Clamp01(normalizedIntensity * INTENSITY_MULTIPLIER);
-            if (scaledIntensity < MIN_INTENSITY)
-            {
-                scaledIntensity = MIN_INTENSITY;
-            }
-
-            byte amplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(MIN_STRENGTH, MAX_STRENGTH, scaledIntensity)), MIN_STRENGTH, MAX_STRENGTH);
-
-            var profileAmplitude = _currentProfile.FireAmplitude > 0 ? _currentProfile.FireAmplitude : amplitude;
-            var profileFrequency = _currentProfile.FireFrequency;
-            var fireVibrationPosition = _currentProfile.FireVibrationPosition;
-            var restoreTriggerAfterFire = _currentProfile.RestoreTriggerAfterFire;
-            var disableTriggerOnFire = _currentProfile.DisableTriggerOnFire;
-
-            Log.Debug($"PSVR2 haptics fire vibration: amplitude={profileAmplitude}, freq={profileFrequency}");
-
-            var ipc = IpcClient.Instance();
-
-            // Check if weapon has trigger-only resistance (startPosition == endPosition)
-            // For trigger-only weapons, don't disable resistance (would leave trigger stuck)
-            if (disableTriggerOnFire)
-            {
-                ipc.TriggerEffectDisable(controllerType);
-            }
-
-            ipc.TriggerEffectVibration(controllerType, fireVibrationPosition, profileAmplitude, profileFrequency);
-
-            if (!restoreTriggerAfterFire)
-            {
-                return;
-            }
-
+            // Standard guns already have free after-travel, so direct feedback provides
+            // a clean push without disturbing the shot behavior that currently feels good.
+            backend.TriggerEffectFeedback(controllerType, pushPosition, pushStrength);
             Task.Run(async () =>
             {
-                await Task.Delay(60);
-                await Task.Delay(50);
-                SendCurrentTriggerProfile(generation);
+                await Task.Delay(pushDurationMs);
+                if (IsCurrentProfileGeneration(generation) && pulseGeneration == _firePulseGeneration)
+                {
+                    SendCurrentTriggerProfile(generation);
+                }
             });
+            return pcmPlayed;
         }
 
 
@@ -624,7 +1251,7 @@ namespace GTFO_VR.Core.PSVR2
                         frequency = 0;
                     }
 
-                    IpcClient.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, amplitude, frequency);
+                    PSVR2HapticsBackend.Instance().TriggerEffectVibration(controllerType, FIRE_VIBRATION_POSITION, amplitude, frequency);
 
                     if (i < stepCount - 1)
                     {
@@ -643,7 +1270,7 @@ namespace GTFO_VR.Core.PSVR2
                 return;
             }
 
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
             var controllerType = GetMainControllerType();
 
             Log.Debug($"PSVR2 haptics reload: controller={controllerType}, amplitude={RELOAD_AMPLITUDE}, freq={RELOAD_FREQUENCY}");
@@ -676,7 +1303,7 @@ namespace GTFO_VR.Core.PSVR2
                 MAX_STRENGTH
             );
 
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
             ipc.TriggerEffectWeapon(controllerType, _currentProfile.StartPosition, _currentProfile.EndPosition, chargeStrength);
             ipc.TriggerEffectSlopeFeedback(controllerType, _currentProfile.StartPosition, _currentProfile.EndPosition, _currentProfile.SlopeStartStrength, chargeSlopeEnd);
             DisableOffHandTrigger(ipc);
@@ -721,7 +1348,7 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var controllerType = GetMainControllerType();
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
 
             // Charging is when: button held + not recharging + not firing + pressure > 0
             // This matches the game logic: m_fireButtonDown && !m_reCharging && !m_firing && hasAmmo
@@ -791,7 +1418,7 @@ namespace GTFO_VR.Core.PSVR2
                 MAX_STRENGTH
             );
 
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
             ipc.TriggerEffectWeapon(controllerType, 1, 8, scanStrength);
             ipc.TriggerEffectSlopeFeedback(controllerType, 1, 8, 7, scanSlopeEnd);
             DisableOffHandTrigger(ipc);
@@ -818,7 +1445,7 @@ namespace GTFO_VR.Core.PSVR2
             // Pulse wave that goes out and reflects back, losing strength
             Task.Run(async () =>
             {
-                var ipc = IpcClient.Instance();
+                var ipc = PSVR2HapticsBackend.Instance();
 
                 // Wave going out (strong to medium)
                 if (!IsCurrentProfileGeneration(generation)) return;
@@ -867,23 +1494,51 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var controllerType = GetMainControllerType();
-            var ipc = IpcClient.Instance();
+            var ipc = PSVR2HapticsBackend.Instance();
 
             // Short, sharp vibration pulse (60ms)
             // Medium-high amplitude and frequency for noticeable but not intrusive feedback
             ipc.TriggerEffectVibration(controllerType, 3, 5, 150);
         }
 
-        internal static void TriggerDamageFeedback()
+        internal static void TriggerDamageFeedback(float damage)
         {
+            Log.Info($"PSVR2 damage event received: damage={damage:F2}.");
+
             if (!EnsureReady())
             {
+                Log.Warning("PSVR2 damage feedback skipped: Toolkit backend is not ready.");
                 return;
             }
 
-            Log.Debug("PSVR2 haptics damage pulse (both controllers).");
+            Log.Info("PSVR2 damage controller pulse submitted for both controllers.");
 
-            IpcClient.Instance().TriggerEffectVibration(EVRControllerType.Both, DAMAGE_POSITION, DAMAGE_AMPLITUDE, DAMAGE_FREQUENCY);
+            PSVR2HapticsBackend.Instance().TriggerEffectVibration(EVRControllerType.Both, DAMAGE_POSITION, DAMAGE_AMPLITUDE, DAMAGE_FREQUENCY);
+
+            var backend = PSVR2HapticsBackend.Instance();
+            if (!backend.SupportsHmdRumble)
+            {
+                Log.Warning($"PSVR2 HMD damage rumble skipped: backend '{backend.BackendName}' does not support headset rumble.");
+                return;
+            }
+
+            float normalizedDamage = Mathf.Clamp01(Mathf.Max(0f, damage) / DAMAGE_FOR_MAX_HMD_RUMBLE);
+            byte rumbleFrequency = (byte)Mathf.RoundToInt(Mathf.Lerp(
+                HMD_DAMAGE_MIN_FREQUENCY,
+                HMD_DAMAGE_MAX_FREQUENCY,
+                normalizedDamage));
+            int rumbleDurationMs = Mathf.RoundToInt(Mathf.Lerp(
+                HMD_DAMAGE_MIN_DURATION_MS,
+                HMD_DAMAGE_MAX_DURATION_MS,
+                normalizedDamage));
+
+            if (!StartHmdOverride(rumbleFrequency, rumbleDurationMs, "damage"))
+            {
+                Log.Warning($"PSVR2 HMD damage rumble command failed: damage={damage:F2}, frequency={rumbleFrequency}Hz, duration={rumbleDurationMs}ms.");
+                return;
+            }
+
+            Log.Info($"PSVR2 HMD damage rumble submitted: damage={damage:F2}, frequency={rumbleFrequency}Hz, duration={rumbleDurationMs}ms.");
         }
 
         internal static void DisableTriggers()
@@ -910,15 +1565,22 @@ namespace GTFO_VR.Core.PSVR2
                 FireFrequency = DEFAULT_FIRE_FREQUENCY,
                 DisableTriggerOnFire = true,
                 RestoreTriggerAfterFire = true,
-                FirePattern = null
+                FirePattern = null,
+                PcmEnabled = false,
+                PcmKickFrequency = 75f,
+                PcmSnapFrequency = 190f,
+                PcmAmplitude = 0f,
+                PcmDurationMs = 60,
+                PcmSupportHandScale = 0f,
+                PcmEnergySweep = false
             };
 
-            if (!IpcClient.Instance().IsRunning)
+            if (!PSVR2HapticsBackend.Instance().IsRunning)
             {
                 return;
             }
 
-            DisableAllTriggers(IpcClient.Instance(), "disable triggers");
+            DisableAllTriggers(PSVR2HapticsBackend.Instance(), "disable triggers");
         }
     }
 }

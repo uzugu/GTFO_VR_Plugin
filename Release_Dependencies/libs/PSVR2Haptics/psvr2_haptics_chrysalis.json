@@ -1,0 +1,1540 @@
+{
+  "archetype:70": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 4,
+    "feedbackStrength": 5,
+    "fireAmplitude": 5,
+    "fireFrequency": 140
+  },
+  "archetype:1": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 4,
+    "feedbackStrength": 5,
+    "fireAmplitude": 5,
+    "fireFrequency": 140
+  },
+  "archetype:3": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      5,
+      4,
+      3,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 5,
+        "frequency": 175
+      },
+      {
+        "delayMs": 50,
+        "amplitude": 5,
+        "frequency": 167
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 4,
+        "frequency": 159
+      },
+      {
+        "delayMs": 190,
+        "amplitude": 3,
+        "frequency": 88
+      }
+    ]
+  },
+  "archetype:5": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      4,
+      6,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "fireAmplitude": 6,
+    "fireFrequency": 130
+  },
+  "archetype:76": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 42,
+    "multiPositionVibration": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      8,
+      8,
+      7,
+      5,
+      3
+    ],
+    "fireAmplitude": 8,
+    "fireFrequency": 70
+  },
+  "archetype:67": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "fireAmplitude": 8,
+    "fireFrequency": 70
+  },
+  "archetype:73": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      4,
+      6,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "fireAmplitude": 6,
+    "fireFrequency": 130
+  },
+  "archetype:16": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:17": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 4,
+        "frequency": 95
+      }
+    ]
+  },
+  "archetype:18": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      4,
+      6,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 35,
+        "amplitude": 6,
+        "frequency": 122
+      },
+      {
+        "delayMs": 70,
+        "amplitude": 5,
+        "frequency": 114
+      },
+      {
+        "delayMs": 105,
+        "amplitude": 5,
+        "frequency": 106
+      },
+      {
+        "delayMs": 185,
+        "amplitude": 4,
+        "frequency": 65
+      }
+    ]
+  },
+  "archetype:20": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:69": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      8,
+      8,
+      7,
+      5,
+      3
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 120
+  },
+  "archetype:77": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      8,
+      8,
+      7,
+      5,
+      3
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 120
+  },
+  "archetype:19": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      5,
+      4,
+      3,
+      2
+    ],
+    "fireAmplitude": 4,
+    "fireFrequency": 200
+  },
+  "archetype:21": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 6,
+    "feedbackStrength": 7,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 110,
+        "amplitude": 5,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:22": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 90
+  },
+  "archetype:71": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 90
+  },
+  "archetype:23": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 90
+  },
+  "archetype:59": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 42,
+    "multiPositionVibration": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      7,
+      5,
+      3
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 90
+  },
+  "archetype:24": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:25": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 4,
+        "frequency": 95
+      }
+    ]
+  },
+  "archetype:68": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 4,
+        "frequency": 95
+      }
+    ]
+  },
+  "archetype:60": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 4,
+        "frequency": 95
+      }
+    ]
+  },
+  "archetype:26": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      4,
+      6,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 80,
+        "amplitude": 6,
+        "frequency": 122
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 4,
+        "frequency": 65
+      }
+    ]
+  },
+  "archetype:27": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      4,
+      6,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "fireAmplitude": 6,
+    "fireFrequency": 130
+  },
+  "archetype:28": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:29": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:63": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:30": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 6,
+    "feedbackStrength": 7,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 120,
+        "amplitude": 7,
+        "frequency": 82
+      },
+      {
+        "delayMs": 240,
+        "amplitude": 6,
+        "frequency": 74
+      },
+      {
+        "delayMs": 400,
+        "amplitude": 5,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:31": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 110,
+        "amplitude": 5,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:32": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:33": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:72": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:75": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 60,
+        "amplitude": 8,
+        "frequency": 60
+      },
+      {
+        "delayMs": 150,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:74": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 60,
+        "amplitude": 8,
+        "frequency": 60
+      },
+      {
+        "delayMs": 120,
+        "amplitude": 7,
+        "frequency": 52
+      },
+      {
+        "delayMs": 210,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:61": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 5,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:34": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 6,
+        "frequency": 27
+      }
+    ]
+  },
+  "archetype:34312": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 6,
+    "feedbackStrength": 7,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 78
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 5,
+        "frequency": 43
+      }
+    ]
+  },
+  "archetype:35": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 5,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:7878": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 6,
+        "frequency": 27
+      }
+    ]
+  },
+  "archetype:78": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:787878": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:36": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 68
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 60
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 52
+      },
+      {
+        "delayMs": 290,
+        "amplitude": 6,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:37": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 6,
+    "feedbackStrength": 7,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 5,
+        "frequency": 55
+      }
+    ]
+  },
+  "archetype:37111": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 6,
+    "feedbackStrength": 7,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 5,
+        "frequency": 55
+      }
+    ]
+  },
+  "archetype:64": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 4,
+        "frequency": 95
+      }
+    ]
+  },
+  "archetype:38": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 6,
+    "feedbackStrength": 7,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 95
+      },
+      {
+        "delayMs": 315,
+        "amplitude": 5,
+        "frequency": 48
+      }
+    ]
+  },
+  "archetype:39": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      2,
+      4,
+      6,
+      7,
+      5,
+      3,
+      2,
+      1
+    ],
+    "fireAmplitude": 6,
+    "fireFrequency": 130
+  },
+  "archetype:40": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:65": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 90
+      },
+      {
+        "delayMs": 110,
+        "amplitude": 6,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:790": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 90
+      },
+      {
+        "delayMs": 110,
+        "amplitude": 6,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:79": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      0,
+      2,
+      5,
+      8,
+      8,
+      8,
+      7,
+      5,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 90
+      },
+      {
+        "delayMs": 110,
+        "amplitude": 6,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:41": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 4,
+        "frequency": 95
+      }
+    ]
+  },
+  "archetype:80": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:62": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 4,
+    "feedbackStrength": 5,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 5,
+        "frequency": 175
+      },
+      {
+        "delayMs": 75,
+        "amplitude": 3,
+        "frequency": 140
+      }
+    ]
+  },
+  "archetype:42": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 6,
+        "frequency": 130
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 6,
+        "frequency": 122
+      },
+      {
+        "delayMs": 220,
+        "amplitude": 4,
+        "frequency": 65
+      }
+    ]
+  },
+  "archetype:43": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6,
+      6,
+      5,
+      4,
+      2
+    ],
+    "fireAmplitude": 5,
+    "fireFrequency": 155
+  },
+  "archetype:431111": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6,
+      6,
+      5,
+      4,
+      2
+    ],
+    "fireAmplitude": 5,
+    "fireFrequency": 155
+  },
+  "archetype:66": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6,
+      6,
+      5,
+      4,
+      2
+    ],
+    "fireAmplitude": 5,
+    "fireFrequency": 155
+  },
+  "archetype:6667": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 48,
+    "multiPositionVibration": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6,
+      6,
+      5,
+      4,
+      2
+    ],
+    "fireAmplitude": 5,
+    "fireFrequency": 155
+  },
+  "archetype:44": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 7,
+    "feedbackStrength": 8,
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 8,
+        "frequency": 70
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 8,
+        "frequency": 62
+      },
+      {
+        "delayMs": 200,
+        "amplitude": 7,
+        "frequency": 54
+      },
+      {
+        "delayMs": 340,
+        "amplitude": 6,
+        "frequency": 35
+      }
+    ]
+  },
+  "archetype:45": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 5,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:47": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 68
+      },
+      {
+        "delayMs": 120,
+        "amplitude": 7,
+        "frequency": 60
+      },
+      {
+        "delayMs": 240,
+        "amplitude": 6,
+        "frequency": 52
+      },
+      {
+        "delayMs": 330,
+        "amplitude": 5,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:46": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 68
+      },
+      {
+        "delayMs": 90,
+        "amplitude": 5,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:52": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 68
+      },
+      {
+        "delayMs": 170,
+        "amplitude": 7,
+        "frequency": 60
+      },
+      {
+        "delayMs": 260,
+        "amplitude": 5,
+        "frequency": 34
+      }
+    ]
+  },
+  "archetype:49": {
+    "triggerMode": "multiPositionVibration",
+    "multiPositionVibrationFrequency": 42,
+    "multiPositionVibration": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      7,
+      5,
+      3
+    ],
+    "fireAmplitude": 7,
+    "fireFrequency": 90
+  },
+  "archetype:50": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 50,
+        "amplitude": 7,
+        "frequency": 82
+      },
+      {
+        "delayMs": 100,
+        "amplitude": 6,
+        "frequency": 74
+      },
+      {
+        "delayMs": 150,
+        "amplitude": 6,
+        "frequency": 66
+      },
+      {
+        "delayMs": 240,
+        "amplitude": 5,
+        "frequency": 45
+      }
+    ]
+  },
+  "archetype:51": {
+    "triggerMode": "feedback",
+    "feedbackPosition": 5,
+    "feedbackStrength": 6,
+    "fireAmplitude": 6,
+    "fireFrequency": 100
+  },
+  "archetype:53": {
+    "triggerMode": "multiPosition",
+    "multiPositionFeedback": [
+      0,
+      1,
+      3,
+      5,
+      7,
+      8,
+      8,
+      6,
+      4,
+      2
+    ],
+    "firePattern": [
+      {
+        "delayMs": 0,
+        "amplitude": 7,
+        "frequency": 90
+      },
+      {
+        "delayMs": 55,
+        "amplitude": 7,
+        "frequency": 82
+      },
+      {
+        "delayMs": 150,
+        "amplitude": 5,
+        "frequency": 45
+      }
+    ]
+  }
+}

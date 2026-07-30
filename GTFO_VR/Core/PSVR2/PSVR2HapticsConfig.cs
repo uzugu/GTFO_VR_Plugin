@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using BepInEx;
 using GTFO_VR.Core;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace GTFO_VR.Core.PSVR2
 {
@@ -35,6 +36,16 @@ namespace GTFO_VR.Core.PSVR2
         [JsonProperty("disableTriggerOnFire")] public bool? DisableTriggerOnFire { get; set; }
         [JsonProperty("restoreTriggerAfterFire")] public bool? RestoreTriggerAfterFire { get; set; }
         [JsonProperty("firePattern")] public PSVR2FirePatternStepConfig[] FirePattern { get; set; }
+        [JsonProperty("pcmEnabled")] public bool? PcmEnabled { get; set; }
+        [JsonProperty("pcmKickFrequency")] public float? PcmKickFrequency { get; set; }
+        [JsonProperty("pcmSnapFrequency")] public float? PcmSnapFrequency { get; set; }
+        [JsonProperty("pcmAmplitude")] public float? PcmAmplitude { get; set; }
+        [JsonProperty("pcmDurationMs")] public int? PcmDurationMs { get; set; }
+        [JsonProperty("pcmSupportHandScale")] public float? PcmSupportHandScale { get; set; }
+        [JsonProperty("pcmEnergySweep")] public bool? PcmEnergySweep { get; set; }
+        [JsonProperty("recoilPushPosition")] public byte? RecoilPushPosition { get; set; }
+        [JsonProperty("recoilPushStrength")] public byte? RecoilPushStrength { get; set; }
+        [JsonProperty("recoilPushDurationMs")] public int? RecoilPushDurationMs { get; set; }
     }
 
     internal static class PSVR2HapticsConfig
@@ -42,6 +53,7 @@ namespace GTFO_VR.Core.PSVR2
         private const string CONFIG_FILE_NAME = "psvr2_haptics.json";
         private static readonly string[] EXTRA_CONFIG_FILE_NAMES =
         {
+            "psvr2_haptics_chrysalis.json",
             "psvr2_haptics_fe3.json",
             "psvr2_haptics_fe3_experimental.json"
         };
@@ -116,7 +128,7 @@ namespace GTFO_VR.Core.PSVR2
             try
             {
                 var json = File.ReadAllText(path);
-                var data = JsonConvert.DeserializeObject<Dictionary<string, PSVR2WeaponProfileConfig>>(json);
+                var data = JsonConvert.DeserializeObject<Dictionary<string, JToken>>(json);
                 if (data == null)
                 {
                     Log.Warning($"PSVR2 trigger profile file '{Path.GetFileName(path)}' was empty or invalid.");
@@ -125,7 +137,26 @@ namespace GTFO_VR.Core.PSVR2
 
                 foreach (var kvp in data)
                 {
-                    if (string.IsNullOrWhiteSpace(kvp.Key) || kvp.Value == null)
+                    if (string.IsNullOrWhiteSpace(kvp.Key) ||
+                        kvp.Key.StartsWith("_comment", StringComparison.InvariantCultureIgnoreCase) ||
+                        kvp.Value == null ||
+                        kvp.Value.Type == JTokenType.Null)
+                    {
+                        continue;
+                    }
+
+                    PSVR2WeaponProfileConfig profile;
+                    try
+                    {
+                        profile = kvp.Value.ToObject<PSVR2WeaponProfileConfig>();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning($"Skipping invalid PSVR2 profile '{kvp.Key}' in '{Path.GetFileName(path)}': {ex.Message}");
+                        continue;
+                    }
+
+                    if (profile == null)
                     {
                         continue;
                     }
@@ -136,7 +167,7 @@ namespace GTFO_VR.Core.PSVR2
                         overriddenEntries++;
                     }
 
-                    _profiles[key] = kvp.Value;
+                    _profiles[key] = profile;
                     loadedEntries++;
                 }
 
@@ -375,6 +406,56 @@ namespace GTFO_VR.Core.PSVR2
                 {
                     profile.FirePattern = pattern;
                 }
+            }
+
+            if (config.PcmEnabled.HasValue)
+            {
+                profile.PcmEnabled = config.PcmEnabled.Value;
+            }
+
+            if (config.PcmKickFrequency.HasValue)
+            {
+                profile.PcmKickFrequency = Math.Max(10f, Math.Min(1000f, config.PcmKickFrequency.Value));
+            }
+
+            if (config.PcmSnapFrequency.HasValue)
+            {
+                profile.PcmSnapFrequency = Math.Max(10f, Math.Min(1000f, config.PcmSnapFrequency.Value));
+            }
+
+            if (config.PcmAmplitude.HasValue)
+            {
+                profile.PcmAmplitude = Math.Max(0f, Math.Min(1f, config.PcmAmplitude.Value));
+            }
+
+            if (config.PcmDurationMs.HasValue)
+            {
+                profile.PcmDurationMs = Math.Max(10, Math.Min(500, config.PcmDurationMs.Value));
+            }
+
+            if (config.PcmSupportHandScale.HasValue)
+            {
+                profile.PcmSupportHandScale = Math.Max(0f, Math.Min(1f, config.PcmSupportHandScale.Value));
+            }
+
+            if (config.PcmEnergySweep.HasValue)
+            {
+                profile.PcmEnergySweep = config.PcmEnergySweep.Value;
+            }
+
+            if (config.RecoilPushPosition.HasValue)
+            {
+                profile.RecoilPushPosition = ClampByte(config.RecoilPushPosition.Value, 0, 9);
+            }
+
+            if (config.RecoilPushStrength.HasValue)
+            {
+                profile.RecoilPushStrength = ClampByte(config.RecoilPushStrength.Value, 1, 8);
+            }
+
+            if (config.RecoilPushDurationMs.HasValue)
+            {
+                profile.RecoilPushDurationMs = Math.Max(8, Math.Min(80, config.RecoilPushDurationMs.Value));
             }
         }
 

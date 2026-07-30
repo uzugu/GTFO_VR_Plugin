@@ -1,5 +1,6 @@
 ﻿using System;
 using GTFO_VR.Core.PlayerBehaviours.BodyHaptics.Bhaptics;
+using GTFO_VR.Core.PlayerBehaviours.BodyHaptics.PSVR2;
 using GTFO_VR.Core.PlayerBehaviours.BodyHaptics.Shockwave;
 using GTFO_VR.Events;
 using Player;
@@ -12,6 +13,7 @@ namespace GTFO_VR.Core.PlayerBehaviours.BodyHaptics
         private LocalPlayerAgent m_player;
 
         private BhapticsElevatorSequence m_bhapticsSequence;
+        private PSVR2ElevatorSequence m_psvr2Sequence;
         private ShockwaveElevatorSequence m_shockwaveSequence;
 
         private ElevatorState m_elevatorState = ElevatorState.None;
@@ -39,6 +41,9 @@ namespace GTFO_VR.Core.PlayerBehaviours.BodyHaptics
             m_bhapticsSequence = new BhapticsElevatorSequence();
             m_bhapticsSequence.Setup();
 
+            m_psvr2Sequence = new PSVR2ElevatorSequence();
+            m_psvr2Sequence.Setup();
+
             m_shockwaveSequence = new ShockwaveElevatorSequence();
             m_shockwaveSequence.Setup();
         }
@@ -61,7 +66,7 @@ namespace GTFO_VR.Core.PlayerBehaviours.BodyHaptics
 
         private ElevatorSequenceAgent[] GetAgents()
         {
-            return new ElevatorSequenceAgent[] { m_bhapticsSequence, m_shockwaveSequence };
+            return new ElevatorSequenceAgent[] { m_bhapticsSequence, m_psvr2Sequence, m_shockwaveSequence };
         }
 
         private void FixedUpdate()
@@ -159,11 +164,6 @@ namespace GTFO_VR.Core.PlayerBehaviours.BodyHaptics
 
         private void OnPreReleaseSequenceStarted()
         {
-            if (!VRConfig.configUseBhaptics.Value)
-            {
-                return;
-            }
-
             ChangeElevatorState(ElevatorState.SceneLoaded);
         }
 

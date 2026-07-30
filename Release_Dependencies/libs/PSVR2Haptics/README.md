@@ -14,6 +14,10 @@ This folder contains configuration files for PSVR2 adaptive trigger haptics.
 
 Defines the base weapon-specific haptic profiles for adaptive triggers.
 
+### `psvr2_haptics_chrysalis.json`
+
+Optional sidecar file for Chrysalis archetype-specific profiles. Use this when you are playing Chrysalis and want PSVR2 trigger tuning tied to its custom archetype IDs.
+
 ### `psvr2_haptics_fe3.json` or `psvr2_haptics_fe3_experimental.json`
 
 Optional sidecar files for FE3-specific profiles. These files must be in the same `BepInEx/plugins/PSVR2Haptics` folder as `psvr2_haptics.json`.
@@ -21,10 +25,11 @@ Optional sidecar files for FE3-specific profiles. These files must be in the sam
 The loader reads files in this order:
 
 1. `psvr2_haptics.json`
-2. `psvr2_haptics_fe3.json`
-3. `psvr2_haptics_fe3_experimental.json`
+2. `psvr2_haptics_chrysalis.json`
+3. `psvr2_haptics_fe3.json`
+4. `psvr2_haptics_fe3_experimental.json`
 
-Later files override earlier files when they use the same profile key. This lets the base file stay close to the original profile set while FE3 profiles live separately.
+Later files override earlier files when they use the same profile key. This lets the base file stay close to the original profile set while Chrysalis or FE3 profiles live separately.
 
 Each weapon profile can have:
 
@@ -64,6 +69,17 @@ Use archetype keys for FE3 weapons that share the same visible name but behave d
 - `fireFrequency` (1-255): Vibration pitch in Hz (higher = sharper)
 - `disableTriggerOnFire` (`true`/`false`): Temporarily clear trigger resistance before the fire vibration
 - `restoreTriggerAfterFire` (`true`/`false`): Restore the weapon trigger profile after the fire vibration
+
+#### PCM Controller Haptics (Toolkit v1.0.0 CAPI)
+- `pcmEnabled` (`true`/`false`): Enables waveform-based Sense controller recoil when direct CAPI is available
+- `pcmKickFrequency` (10-1000): Low-frequency recoil body in Hz
+- `pcmSnapFrequency` (10-1000): High-frequency mechanical snap in Hz, or sweep end frequency for energy weapons
+- `pcmAmplitude` (0.0-1.0): Main-hand PCM strength
+- `pcmDurationMs` (10-500): Recoil waveform duration
+- `pcmSupportHandScale` (0.0-1.0): Support-hand strength while aiming two-handed
+- `pcmEnergySweep` (`true`/`false`): Uses an electronic frequency sweep instead of the mechanical kick/snap waveform
+
+PCM haptics use direct CAPI when available. If CAPI or PCM streaming is unavailable, GTFO VR falls back to its normal SteamVR controller pulse while retaining adaptive-trigger effects through legacy IPC.
 
 #### Advanced Fire Patterns
 For weapons like energy guns, you can define multi-stage vibration sequences:

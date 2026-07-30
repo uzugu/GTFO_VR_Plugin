@@ -140,12 +140,13 @@ namespace GTFO_VR.Core.PlayerBehaviours
         {
             float intensity = GetFireHapticStrength(weapon, VRConfig.configShootingHapticsStrength.Value);
 
+            bool pcmPlayed = false;
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
-                PSVR2HapticsManager.TriggerWeaponFire(intensity, Controllers.AimingTwoHanded);
+                pcmPlayed = PSVR2HapticsManager.TriggerWeaponFire(intensity, Controllers.AimingTwoHanded);
             }
 
-            if (!VRConfig.configUseWeaponHaptics.Value || VRConfig.configUsePSVR2Haptics.Value)
+            if (!VRConfig.configUseWeaponHaptics.Value || pcmPlayed)
             {
                 return;
             }
@@ -174,7 +175,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
         {
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
-                PSVR2HapticsManager.TriggerDamageFeedback();
+                PSVR2HapticsManager.TriggerDamageFeedback(dmg);
                 return;
             }
 
