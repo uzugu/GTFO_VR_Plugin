@@ -5,6 +5,7 @@ using GTFO_VR.Core.UI;
 using GTFO_VR.Core.UI.Terminal.Pointer;
 using GTFO_VR.Core.UI.Terminal;
 using GTFO_VR.Core.VR_Input;
+using GTFO_VR.Core.VRSync;
 using GTFO_VR.Detours;
 using GTFO_VR.UI;
 using HarmonyLib;
@@ -86,6 +87,7 @@ namespace GTFO_VR.Core
             ClassInjector.RegisterTypeInIl2Cpp<RadialItem>();
             ClassInjector.RegisterTypeInIl2Cpp<WeaponRadialMenu>();
             ClassInjector.RegisterTypeInIl2Cpp<WeaponAmmoHologram>();
+            ClassInjector.RegisterTypeInIl2Cpp<VRSyncLocalTest>();
 
             ClassInjector.RegisterTypeInIl2Cpp<MonoPointerEvent>();
             ClassInjector.RegisterTypeInIl2Cpp<RoundedCubeBackground>();       
