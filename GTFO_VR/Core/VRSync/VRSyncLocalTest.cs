@@ -73,27 +73,32 @@ namespace GTFO_VR.Core.VRSync
         private Vector3 m_botWeaponOriginalLocalPos;
         private Quaternion m_botWeaponOriginalLocalRot;
 
-        // Grip-anchored hands (see ApplyPose / ApplyGripAnchoredHand). When a non-melee
-        // item is held, each gripping hand is anchored to the bot's OWN item grip so the
-        // hand sits ON the item rather than at the (slightly-off) transmitted hand pose.
-        // The bot's LimbIK goal is the wrist but the grip point is at the palm, so this
-        // (wrist→palm) offset is subtracted in the grip's local frame to put the bot's
-        // palm — not wrist — on the grip. Temporary live tuner: number row 7/1 = ±X,
-        // 8/2 = ±Y, 9/3 = ±Z (numpad too); read DebugGripPalmOffset off the DIAG log to bake.
-        private static readonly Vector3 s_gripPalmOffset = new Vector3(0f, 0f, 0.07f);
-        private static Vector3 m_gripPalmTune;
-        private static Vector3 DebugGripPalmOffset => s_gripPalmOffset + m_gripPalmTune;
+        // [TEST-ONLY, TEMPORARY] Force the bot to follow the VR player's held-item SLOT
+        // (primary/secondary/melee/class/...) instead of its AI-driven default, so the
+        // other grip/weapon combinations can actually be seen on the bot. See
+        // TryForceBotSlotMatch(). To revert: delete this field, that method, the call to it
+        // in Update(), and the one m_lastForcedSlot init line in SetupTargetBot().
+        private Player.InventorySlot m_lastForcedSlot = Player.InventorySlot.None;
 
+        // Grip-anchored hands (see ApplyPose / ApplyGripAnchoredHand) snap STRAIGHT to the
+        // bot's own item grip transform with NO offset: the game already builds each grip at
+        // the exact point where the hand belongs, so the grip IS the hand position. (An
+        // earlier s_gripPalmOffset was added here on the assumption the grips needed a
+        // wrist→palm shift, but that was a second, divergent copy of the same offset — the
+        // ONLY wrist→palm offset now lives in VRSyncData, for the normal/melee hand.)
+        //
+        // That single offset is live-tunable: number row 7/1 = ±X, 8/2 = ±Y, 9/3 = ±Z
+        // (numpad too); read VRSyncData.DebugHandPalmOffset off the DIAG log to bake.
         private static bool KeyDown(KeyCode row, KeyCode pad) => Input.GetKeyDown(row) || Input.GetKeyDown(pad);
 
-        private static void HandleGripTuneInput(float step = 0.005f)
+        private static void HandleHandPalmTuneInput(float step = 0.005f)
         {
-            if (KeyDown(KeyCode.Alpha7, KeyCode.Keypad7)) m_gripPalmTune.x += step;
-            else if (KeyDown(KeyCode.Alpha1, KeyCode.Keypad1)) m_gripPalmTune.x -= step;
-            else if (KeyDown(KeyCode.Alpha8, KeyCode.Keypad8)) m_gripPalmTune.y += step;
-            else if (KeyDown(KeyCode.Alpha2, KeyCode.Keypad2)) m_gripPalmTune.y -= step;
-            else if (KeyDown(KeyCode.Alpha9, KeyCode.Keypad9)) m_gripPalmTune.z += step;
-            else if (KeyDown(KeyCode.Alpha3, KeyCode.Keypad3)) m_gripPalmTune.z -= step;
+            if (KeyDown(KeyCode.Alpha7, KeyCode.Keypad7)) VRSyncData.debugHandPalmTune.x += step;
+            else if (KeyDown(KeyCode.Alpha1, KeyCode.Keypad1)) VRSyncData.debugHandPalmTune.x -= step;
+            else if (KeyDown(KeyCode.Alpha8, KeyCode.Keypad8)) VRSyncData.debugHandPalmTune.y += step;
+            else if (KeyDown(KeyCode.Alpha2, KeyCode.Keypad2)) VRSyncData.debugHandPalmTune.y -= step;
+            else if (KeyDown(KeyCode.Alpha9, KeyCode.Keypad9)) VRSyncData.debugHandPalmTune.z += step;
+            else if (KeyDown(KeyCode.Alpha3, KeyCode.Keypad3)) VRSyncData.debugHandPalmTune.z -= step;
         }
 
         private void Update()
@@ -101,9 +106,10 @@ namespace GTFO_VR.Core.VRSync
             if (!FocusStateEvents.currentState.Equals(eFocusState.FPS))
                 return;
 
-            // Live grip-palm-offset tuner (temporary; runs whenever in-map, even before a
-            // bot is found, so it can be pre-dialed).
-            HandleGripTuneInput();
+            // Live hand-palm-offset tuner (temporary; runs whenever in-map, even before a
+            // bot is found, so it can be pre-dialed). Adjusts the ONLY wrist→palm offset —
+            // the normal/melee hand's (VRSyncData.debugHandPalmTune).
+            HandleHandPalmTuneInput();
 
             // A destroyed bot (e.g. removed by the game) resets the search
             if (m_ikConfigured && !m_targetBot)
@@ -117,6 +123,12 @@ namespace GTFO_VR.Core.VRSync
                 m_lastSearchTime = Time.unscaledTime;
                 SetupTargetBot();
             }
+
+            // [TEST-ONLY] Keep the bot on the VR player's held-item slot (see
+            // TryForceBotSlotMatch). Self-throttles on the bot's WieldedSlot, so it's a
+            // no-op while matched and re-fires the frame after the AI drags it off.
+            if (m_ikConfigured && m_targetBot && VRSyncData.HasPose)
+                TryForceBotSlotMatch();
 
             // Periodic diagnostic: logs the yaw sources so the residual orbital /
             // rotation behaviour can be diagnosed by physically turning and reading
@@ -181,14 +193,14 @@ namespace GTFO_VR.Core.VRSync
             float hmdYaw = HMD.Hmd != null ? HMD.Hmd.transform.rotation.eulerAngles.y : -1f;
             float botYaw = m_targetBot.transform.rotation.eulerAngles.y;
             float modelYaw = m_targetBot.PlayerSyncModel.transform.rotation.eulerAngles.y;
-            Vector3 gripOff = DebugGripPalmOffset;
+            Vector3 handOff = VRSyncData.DebugHandPalmOffset;
             bool gripAnchored = !VRSyncData.IsMelee && VRSyncData.HasHeldItem
                 && m_botWeapon != null && m_botWeapon.RightHandGripTrans != null;
             Log.Info($"VRSync DIAG: bodyYaw={bodyYaw:F0} hmdYaw={hmdYaw:F0} " +
                      $"botYaw={botYaw:F0} modelYaw={modelYaw:F0} " +
                      $"lookW={ik.m_lookWeight:F2} lookIKenabled={ik.m_lookIK.enabled} " +
                      $"gripAnchored={gripAnchored} isMelee={VRSyncData.IsMelee} hasItem={VRSyncData.HasHeldItem} " +
-                     $"gripOffset=({gripOff.x:F3},{gripOff.y:F3},{gripOff.z:F3}) " +
+                     $"handOffset=({handOff.x:F3},{handOff.y:F3},{handOff.z:F3}) " +
                      $"primaryFired={VRSyncSyncIKAimUpdatePatch.FiredCount} " +
                      $"fallbackFired={VRSyncSolverLateUpdatePatch.FiredCount}");
         }
@@ -213,6 +225,8 @@ namespace GTFO_VR.Core.VRSync
                 // to its own game-driven hold once we no longer re-assert it each frame).
                 m_botWeapon = null;
                 m_botWeaponOriginalParent = null;
+                // [TEST-ONLY] Reset the slot-match log latch (see TryForceBotSlotMatch).
+                m_lastForcedSlot = Player.InventorySlot.None;
                 Log.Info($"VRSyncLocalTest: Found target bot: {agent.gameObject.name}");
 
                 // Invisible IK target transforms, parented to the bot's sync model.
@@ -342,9 +356,9 @@ namespace GTFO_VR.Core.VRSync
         /// (= body) frame, or release it back to its grip anchor when there is nothing to
         /// mirror.
         ///
-        /// We reuse the bot's already-equipped item (Inventory.WieldedItem — for a bot
-        /// that's a PlayerInventorySynced, whose WieldedItem is the synced ItemEquippable)
-        /// rather than spawning the matching item, to keep this a pure pose-math test.
+        /// We reuse the bot's already-equipped item (Inventory.WieldedItem — a property on
+        /// the base PlayerInventoryBase, which is what the AI bot runs on) rather than
+        /// spawning the matching item, to keep this a pure pose-math test.
         ///
         /// The game sets the item's local transform once at equip (the grip-to-ItemAlign
         /// alignment) and does not re-assert it per frame, so driving it here sticks. We
@@ -390,10 +404,76 @@ namespace GTFO_VR.Core.VRSync
         }
 
         /// <summary>
+        /// [TEST-ONLY, TEMPORARY] Force the bot to hold whatever SLOT the VR player is
+        /// holding (primary, secondary, melee, class tool, ...). The bot is an AI that
+        /// re-equips its own gear (hammer when idle, gun when threatened), so without this
+        /// it stays on the hammer and the other grip/weapon combos can't be seen on it.
+        ///
+        /// We drive it with the SAME command the game's own AI uses to change gear:
+        /// PlayerAgent.Sync.WantsToWieldSlot(slot). That runs the game's real equip path
+        /// (DoInventoryWield → SyncWieldItem on the bot's PlayerInventoryBase) and resolves
+        /// the slot to the bot's own already-loaded item for it, so no item enumeration is
+        /// needed. (The bot runs on the plain base inventory, not the ForDebug one, which is
+        /// why the earlier m_items / DoEquipItem approach never worked — see the log.)
+        ///
+        /// Self-throttling: we only re-issue when the bot's current WieldedSlot differs from
+        /// the target. That avoids a per-frame network packet while matched AND rubber-bands
+        /// the bot back to the player's slot the frame after the AI drags it off (the AI only
+        /// changes slot on its own state transitions, not every frame, so fights are rare).
+        ///
+        /// PlaceOrReleaseBotWeapon() then poses the new WieldedItem at the player's held-item
+        /// pose, so the freshly-wielded item lands in the hand.
+        /// </summary>
+        private void TryForceBotSlotMatch()
+        {
+            if (!VRSyncData.HasHeldItem)
+                return;
+
+            Player.InventorySlot targetSlot = VRSyncData.HeldItemSlot;
+            if (targetSlot == Player.InventorySlot.None)
+                return;
+
+            var inv = m_targetBot.Inventory;
+            if (inv == null || m_targetBot.Sync == null)
+                return;
+
+            // Already on the target slot → do nothing. This is also what stops the network
+            // send while matched; we only re-fire once the AI has dragged the bot off it.
+            if (inv.WieldedSlot == targetSlot)
+                return;
+
+            // Same pre-check the game's DoInventoryWield uses: only bother if the bot has
+            // an item loaded in that slot. This stops a per-frame packet send for slots the
+            // bot owns nothing in (e.g. a resource pack it wasn't given at spawn).
+            if (!PlayerBackpackManager.TryGetItem(m_targetBot.Owner, targetSlot, out var bp)
+                || !bp.IsLoaded)
+                return;
+
+            try
+            {
+                m_targetBot.Sync.WantsToWieldSlot(targetSlot);
+
+                // One log per slot change (not per frame), so the log confirms the switch
+                // without spamming while we and the AI fight over the same slot.
+                if (targetSlot != m_lastForcedSlot)
+                {
+                    m_lastForcedSlot = targetSlot;
+                    Log.Info("VRSyncLocalTest [TEST]: forced bot slot -> " + targetSlot +
+                             " (bot now on " + inv.WieldedSlot + ")");
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Warning("VRSyncLocalTest: slot-match failed: " + e.Message);
+            }
+        }
+
+        /// <summary>
         /// Anchor one hand's IK target to a weapon grip: set its position/rotation to the
-        /// grip's pose in the model (= body) frame, then pull back by the (wrist→palm)
-        /// offset so the bot's palm — not wrist — lands on the grip. No-op (keeps the
-        /// controller pose) when the grip is null (e.g. a one-handed weapon's offhand).
+        /// grip's pose in the model (= body) frame. No (wrist→palm) offset — the game builds
+        /// each grip at the exact point the hand belongs, so the grip IS the hand position.
+        /// No-op (keeps the controller pose) when the grip is null (e.g. a one-handed
+        /// weapon's offhand).
         /// </summary>
         private void ApplyGripAnchoredHand(Transform grip, ref Vector3 pos, ref Quaternion rot)
         {
@@ -403,7 +483,6 @@ namespace GTFO_VR.Core.VRSync
             Transform modelT = m_targetBot.PlayerSyncModel.transform;
             pos = modelT.InverseTransformPoint(grip.position);
             rot = Quaternion.Inverse(modelT.rotation) * grip.rotation;
-            pos -= rot * (s_gripPalmOffset + m_gripPalmTune);
         }
 
         /// <summary>

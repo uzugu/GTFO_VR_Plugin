@@ -45,6 +45,7 @@ namespace GTFO_VR.Core.VRSync
         public static Vector3 HeldItemPos;
         public static Quaternion HeldItemRot;
         public static string HeldItemName;   // item.PublicName (specific, e.g. "SANTONIAN HDH")
+        public static Player.InventorySlot HeldItemSlot; // item's inventory slot (slot-based receiver logic)
         public static bool HasHeldItem;
 
         // bit0: has weapon (shootable weapon in hand)
@@ -84,6 +85,18 @@ namespace GTFO_VR.Core.VRSync
         // (hammer seated in the palm rather than the wrist, hand pivoting about the palm);
         // the same local-frame offset applies to both hands, not mirrored.
         private static readonly Vector3 s_handPalmOffset = new Vector3(-0.09f, 0.06f, 0.07f);
+
+        // [TEST-ONLY, TEMPORARY] Live tune added to the (wrist→palm) hand offset so the
+        // normal hand's position can be eyeballed in-game. ONLY the normal (non-grip-
+        // anchored) hand uses this offset: grip-anchored hands snap straight to the game's
+        // grip transform with NO offset (VRSyncLocalTest.ApplyGripAnchoredHand), because the
+        // grip is already where the hand belongs. So this is the single place the hand-palm
+        // offset lives, and the vertical component (Y = thumb/rod) is the one that reads as
+        // the hand sitting too low. Nudged by the number row / numpad (VRSyncLocalTest.
+        // HandleHandPalmTuneInput: 7/1=±X, 8/2=±Y, 9/3=±Z); read DebugHandPalmOffset off the
+        // DIAG log, then bake the value into s_handPalmOffset and delete this.
+        public static Vector3 debugHandPalmTune;
+        public static Vector3 DebugHandPalmOffset => s_handPalmOffset + debugHandPalmTune;
 
         private static Quaternion m_bodyYaw;
         private static bool m_hasBodyYaw;
@@ -157,8 +170,8 @@ namespace GTFO_VR.Core.VRSync
             // wrist, so pull the hand target back along the hand's local axes by the (wrist→palm)
             // offset to put the bot's palm — not wrist — on the tracked point. In the hand's local
             // frame, so it tracks the hand through pitches and the palm stays the rotation pivot.
-            RightHandPos -= RightHandRot * s_handPalmOffset;
-            LeftHandPos -= LeftHandRot * s_handPalmOffset;
+            RightHandPos -= RightHandRot * DebugHandPalmOffset;
+            LeftHandPos -= LeftHandRot * DebugHandPalmOffset;
 
             // Held item pose + identity. The item's world transform was set by
             // UpdateHeldItemTransform() earlier in this same OnNewPoses() callback (VRPlayer),
@@ -175,6 +188,7 @@ namespace GTFO_VR.Core.VRSync
                 HeldItemPos = bodyYawInv * (heldItem.transform.position - originPos);
                 HeldItemRot = bodyYawInv * heldItem.transform.rotation;
                 HeldItemName = heldItem.PublicName;
+                HeldItemSlot = heldItem.ItemDataBlock != null ? heldItem.ItemDataBlock.inventorySlot : default;
                 HasHeldItem = true;
             }
             else
