@@ -132,18 +132,19 @@ namespace GTFO_VR.Core.VRSync
 
         // Nominal standing head height above the agent root (feet). The game's own
         // Agent.EyePosition is exactly root + 1.8m, so a model rooted at its feet puts
-        // its head 1.8m up. The receiver drops the model's PELVIS — not the whole model
-        // root — by (this - HeadPos.y) so the head bone lands at the user's ACTUAL head
-        // height above the floor while the GrounderBipedIK bends the legs to keep the
-        // feet planted (sliding the model root vertically instead forced the grounder to
-        // span an impossible pelvis-to-foot distance, which read as a two-state bot
-        // "standing up straight" vs. "buried in ground" and offset the hands from the
-        // weapon). A per-frame constant, not a captured value: any latched "resting
-        // baseline" is measured from a single frame, and that frame can be mid-settle
-        // (the map-entry recenter fires before the character finishes dropping into the
-        // spawn, latching a head height ~25cm too high — the bot then stood "straighter
-        // than normal" with a stretched torso and sank waist-deep when the user
-        // crouched).
+        // its head 1.8m up, and the user's crouch depth is (this - HeadPos.y). The
+        // receiver scales that by the game's full-crouch head drop (camPosDefault.y -
+        // camPosCrouch.y) and drives the game's OWN crouch-anim blend
+        // (Locomotion.SetCrouchTarget), whose clip lowers the pelvis and bends the knees
+        // to the user's depth (blend 0 = stand, 1 = the game's full crouch). A per-frame
+        // constant, not a captured value: any latched "resting baseline" is measured from
+        // a single frame, and that frame can be mid-settle (the map-entry recenter fires
+        // before the character finishes dropping into the spawn, latching a head height
+        // ~25cm too high — the bot then stood "straighter than normal"). (An earlier "drop
+        // the pelvis transform directly" was rejected: the pelvis is the parent of the
+        // feet, so it dragged them down with nothing to re-plant them and the bot sank
+        // into the floor; the crouch-anim blend lets the crouch clip handle the hips and
+        // knees and blends with the walk cycle.)
         public const float NominalHeadHeight = 1.8f;
 
         // Max plausible distance from the character's feet to the HMD. Standing the
@@ -190,15 +191,15 @@ namespace GTFO_VR.Core.VRSync
             }
             // Whole-body slide, LATERAL ONLY: how far the user's body is offset from the
             // character within the roomscale window. The vertical component is NOT moved
-            // here — squatting/crouching is expressed by the receiver dropping the model's
-            // pelvis (HeadPos.y < NominalHeadHeight), not by sliding the model root, so the
-            // GrounderBipedIK can bend the legs and keep the feet planted.
+            // here — squatting/crouching is expressed by the receiver driving the game's
+            // own crouch-anim blend from (NominalHeadHeight - HeadPos.y), not by sliding
+            // the model root (the crouch clip lowers the pelvis and bends the knees).
             BodyPos = new Vector3(headRel.x, 0f, headRel.z);
 
             // Head, relative to the slid body: 0 lateral, the user's actual head height
             // above the floor (feet). The receiver's head/neck targets use this, and the
-            // pelvis drop (NominalHeadHeight - HeadPos.y) keeps the model's head bone at
-            // this height too.
+            // crouch-anim blend is driven from (NominalHeadHeight - HeadPos.y) so the
+            // model's crouch depth matches this head height.
             HeadPos = headRel - BodyPos;
             HeadRot = bodyYawInv * hmd.rotation;
 

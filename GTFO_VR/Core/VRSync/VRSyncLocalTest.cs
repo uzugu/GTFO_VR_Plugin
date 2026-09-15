@@ -16,7 +16,8 @@ namespace GTFO_VR.Core.VRSync
     /// The bot's PlayerSyncIK is driven with the VR player's hand/head pose, and the bot's
     /// own weapon is placed at the VR player's held-item pose:
     ///   - both arms via LimbIK targets (world-space position + rotation)
-    ///   - the head via LookAtIK (a point in front of where the VR user is looking)
+    ///   - the head by driving the model head bone's world rotation directly (full
+    ///     pitch + roll; the game's LookAtIK can't roll, so it's disabled on the bot)
     ///   - the held item by re-parenting the bot's own WieldedItem to the model root
     ///
     /// Frame race: the game re-asserts its own aim/look targets and IK weights every
@@ -57,11 +58,18 @@ namespace GTFO_VR.Core.VRSync
     ///     doesn't track it), so a straight assignment would jitter the model. In real
     ///     P2P the synced character position cancels the sawtooth, so this smoothing is a
     ///     local-test accommodation (a small, brief lag on the lateral slide is the cost).
-    ///   - The head is look-driven (neck rotation). Vertical crouch is NOT applied to the
-    ///     model root (which stays grounded, lateral-only): the crouch ANIMATION blend is
-    ///     driven to (NominalHeadHeight - HeadPos.y) / (the game's full-crouch head drop),
-    ///     so the crouch clip lowers the hips and bends the knees to the user's depth
-    ///     (standing ≈ the model's natural pose; crouching lowers the hips, not the body).
+    ///   - The head is driven DIRECTLY: the model head bone's world rotation is set to the
+    ///     HMD world rotation every LateUpdate (full yaw + pitch + roll), pivoting at the
+    ///     neck joint (the head bone origin) — tilting/rolling moves the eyes around the
+    ///     neck with no model-root translation. The game's LookAtIK (which can't roll) is
+    ///     disabled on the bot while we drive the head.
+    ///   - Vertical crouch is NOT applied to the model root (which stays grounded,
+    ///     lateral-only): the crouch ANIMATION blend is driven to
+    ///     (camPosDefault.y - HeadPos.y) / (the game's full-crouch head drop), so the
+    ///     crouch clip lowers the hips and bends the knees to the user's depth (standing
+    ///     ≈ the model's natural pose; crouching lowers the hips, not the body). A small
+    ///     vertical model-root correction (ApplyEyeVerticalCorrection) lands the eyes on
+    ///     the HMD wherever the blend clamps.
     ///   - [TEST-ONLY] ApplyCrouchBlend() drives that blend so the bot's crouch depth
     ///     mirrors the VR user's; in real P2P the game's own crouch sync already does this.
     /// </summary>
@@ -76,10 +84,32 @@ namespace GTFO_VR.Core.VRSync
         private Transform m_rightArmTarget;
         private Transform m_leftArmTarget;
         private Transform m_lookTarget;
+        // The model HEAD bone we drive directly (see ApplyHeadRotation). The game's
+        // LookAtIK only aligns the head's forward (a shortest-arc), so it can yaw+pitch
+        // but never roll; we own the head rotation to get full pitch + roll.
+        private Transform m_headBone;
+        // The model NECK bone — the head's rotation pivot. The head bone origin sits at
+        // the neck joint, so driving the head rotation pivots here with no model shift.
+        private Transform m_neckBone;
+        // Calibration offset on top of the HMD world rotation when driving the head.
+        // Identity by default; tune if the model head's neutral forward differs from the
+        // HMD's zero (visual calibration — the offset is hard to derive analytically).
+        private Quaternion m_headRotOffset = Quaternion.identity;
         // The game's full-crouch head drop (camPosDefault.y - camPosCrouch.y), used to
         // scale the user's head drop into the 0-1 crouch-anim blend. See SetupTargetBot /
         // ApplyCrouchBlend.
         private float m_crouchHeadDrop;
+        // The game's standing camera (eye) height, camPosDefault.y. The crouch blend is
+        // referenced to THIS (not the 1.8 nominal) so the model's eyes track the user's head
+        // height, and the eye vertical correction below compensates where the blend clamps.
+        private float m_camPosDefaultY;
+        // The crouch-anim blend computed this frame (0=stand, 1=full crouch) — shared by the
+        // crouch drive (ApplyCrouchBlend) and the eye vertical correction.
+        private float m_crouchBlend;
+        // The vertical model-root nudge (meters) that puts the model's eyes on the HMD height
+        // where the crouch blend clamps (see ApplyEyeVerticalCorrection). Added to the model
+        // position target in ApplyPose.
+        private float m_eyeVerticalCorrection;
         // Smoothed visual-model world position (see ApplyPose). BodyPos sawtooths as the
         // roomscale recentering (PlayerOrigin.updateRoomscale) jumps the LOCAL character
         // toward the HMD to keep the HMD's world position stable. In real P2P that snap is
@@ -234,11 +264,16 @@ namespace GTFO_VR.Core.VRSync
             Vector3 bodyPos = VRSyncData.BodyPos;
             bool gripAnchored = !VRSyncData.IsMelee && VRSyncData.HasHeldItem
                 && m_botWeapon != null && m_botWeapon.RightHandGripTrans != null;
+            // Head bone world euler: x=pitch (tilt fwd/back), z=roll (tilt side). Should
+            // track the HMD as you tilt/roll your head (lookIKenabled must be false).
+            Vector3 headEuler = m_headBone != null ? m_headBone.rotation.eulerAngles : Vector3.zero;
             Log.Info($"VRSync DIAG: bodyYaw={bodyYaw:F0} hmdYaw={hmdYaw:F0} " +
                      $"botYaw={botYaw:F0} modelYaw={modelYaw:F0} " +
                      $"bodyPos=({bodyPos.x:F2},{bodyPos.y:F2},{bodyPos.z:F2}) " +
                      $"headY={VRSyncData.HeadPos.y:F2} " +
-                     $"crouchDrop={VRSyncData.NominalHeadHeight - VRSyncData.HeadPos.y:F2} crouchScale={m_crouchHeadDrop:F2} " +
+                     $"camStandY={m_camPosDefaultY:F2} crouchDrop={m_crouchHeadDrop:F2} " +
+                     $"crouchBlend={m_crouchBlend:F2} eyeCorr={m_eyeVerticalCorrection:F3} " +
+                     $"headPitch={headEuler.x:F0} headRoll={headEuler.z:F0} " +
                      $"lookW={ik.m_lookWeight:F2} lookIKenabled={ik.m_lookIK.enabled} " +
                      $"gripAnchored={gripAnchored} isMelee={VRSyncData.IsMelee} hasItem={VRSyncData.HasHeldItem} " +
                      $"handOffset=({handOff.x:F3},{handOff.y:F3},{handOff.z:F3}) " +
@@ -284,10 +319,38 @@ namespace GTFO_VR.Core.VRSync
                 // (camPosDefault.y - camPosCrouch.y), so the crouch clip lowers the pelvis
                 // and bends the knees to the user's depth. No pelvis transform needed — we
                 // never move the skeleton ourselves anymore.
+                //
+                // Head alignment: the blend is referenced to the game's STANDING camera (eye)
+                // height camPosDefault.y (NOT the 1.8 nominal), and a small vertical model-root
+                // correction (ApplyEyeVerticalCorrection) nudges the body so the model's eyes
+                // land on the HMD even where the blend clamps (see the fields below).
                 var pd = m_targetBot.PlayerData;
                 m_crouchHeadDrop = (pd != null)
                     ? Mathf.Max(0.05f, pd.camPosDefault.y - pd.camPosCrouch.y)
                     : 0.4f;
+                m_camPosDefaultY = (pd != null) ? pd.camPosDefault.y : VRSyncData.NominalHeadHeight;
+
+                // Head rotation (see ApplyHeadRotation): we drive the model head bone
+                // directly because the game's LookAtIK can't produce roll. Capture the
+                // exact bone the look IK rotates (solver.head), falling back to the
+                // humanoid head bone. Capture the neck as the pivot reference / log.
+                var lookIK = m_targetBot.SyncIK.m_lookIK;
+                m_headBone = (lookIK != null && lookIK.solver != null)
+                    ? lookIK.solver.head.transform
+                    : null;
+                if (m_headBone == null && m_targetBot.AnimatorBody != null
+                    && m_targetBot.AnimatorBody.isHuman)
+                {
+                    m_headBone = m_targetBot.AnimatorBody.GetBoneTransform(HumanBodyBones.Head);
+                }
+                m_neckBone = m_targetBot.PlayerSyncModel.m_neckBone;
+                if (m_neckBone == null && m_targetBot.AnimatorBody != null
+                    && m_targetBot.AnimatorBody.isHuman)
+                {
+                    m_neckBone = m_targetBot.AnimatorBody.GetBoneTransform(HumanBodyBones.Neck);
+                }
+                Log.Info($"VRSyncLocalTest: head bone = {(m_headBone != null ? m_headBone.name : "<none>")} " +
+                         $"neck = {(m_neckBone != null ? m_neckBone.name : "<none>")}");
 
                 // The right arm IK needs special handling: PlayerSyncIK.Setup() zeroes
                 // its position weight, PLOC_Stand.SyncEnter zeroes it again on every
@@ -343,8 +406,16 @@ namespace GTFO_VR.Core.VRSync
                 ik.SetRightArmWeight(1f);
             }
             ik.SetLeftArmWeight(1f);
-            ik.SetLookWeight(1f);
             ik.SetAimWeight(0f);
+            // The head is driven directly (see ApplyHeadRotation): the look IK can't
+            // produce roll and, at weight 0, its fixTransforms would snap the head back to
+            // neutral. Disable the look IK component so it stops solving, and re-assert
+            // every frame — the game re-enables it in its Update phase (PlayerSyncIK.Enable).
+            if (ik.m_lookIK != null)
+            {
+                ik.m_lookIK.enabled = false;
+                ik.SetLookWeight(0f);
+            }
 
             // Rotate the visual model to the VR body facing (yaw). PlayerSyncModel is a
             // child of the agent root (visual-only) — the agent root, AI, character
@@ -372,6 +443,10 @@ namespace GTFO_VR.Core.VRSync
             // lerp) on a new bot or a large jump so we never drag across the map.
             Vector3 modelTarget =
                 m_targetBot.transform.position + m_targetBot.PlayerSyncModel.transform.rotation * VRSyncData.BodyPos;
+            // Vertical eye alignment: nudge the body so the model's eyes sit on the HMD height
+            // where the crouch blend clamps (see ApplyEyeVerticalCorrection). The grounder
+            // re-plants the feet, so this moves the torso/eyes, not the feet.
+            modelTarget.y += m_eyeVerticalCorrection;
             if (!m_hasSmoothModelPos
                 || (modelTarget - m_smoothModelPos).sqrMagnitude > s_teleportSnapDist * s_teleportSnapDist)
             {
@@ -436,10 +511,40 @@ namespace GTFO_VR.Core.VRSync
             ik.SetRightArmTarget(m_rightArmTarget);
             ik.SetLeftArmTarget(m_leftArmTarget);
 
-            // Head: in the body frame the head is ~forward; the LookAtIK point sits 2m
-            // ahead of it, so the head faces the model's facing (= the VR body facing).
-            m_lookTarget.localPosition = VRSyncData.HeadPos + VRSyncData.HeadRot * (Vector3.forward * 2f);
-            ik.SetLookTarget(m_lookTarget);
+            // Head: drive the model head bone's world rotation directly to match the VR
+            // head (full yaw + pitch + roll) — see ApplyHeadRotation. The old look-target
+            // point only produced yaw (the LookAtIK shortest-arc can't roll), so it's gone.
+            ApplyHeadRotation();
+        }
+
+        /// <summary>
+        /// Drive the model head bone's WORLD rotation directly to match the VR head (full
+        /// yaw + pitch + roll), pivoting at the head bone's own origin (the neck joint).
+        /// This is what lets the head tilt forwards/backwards and roll sideways — the
+        /// game's LookAtIK only aligns the head's forward (a shortest-arc), so it can
+        /// yaw+pitch but never roll.
+        ///
+        /// We copy the HMD's WORLD rotation: both are world orientations, so no transform
+        /// is needed, and the head then turns/tilts/rolls exactly like the VR head. The
+        /// model root is already yawed to the body facing, so the head's body-local turn
+        /// stays consistent with the arms (head-local turn ≈ HMD head turn relative to the
+        /// shoulders). A neutral-pose mismatch (model head forward vs HMD forward) is
+        /// absorbed by m_headRotOffset (visual calibration).
+        ///
+        /// The look IK is disabled (in ApplyPose) so its fixTransforms / solve doesn't
+        /// snap the head back to neutral. Writing the head in LateUpdate (after the
+        /// Animator's animation phase) makes the write stick for the frame.
+        ///
+        /// Pivoting at the head bone origin (the neck) is exactly what the user asked for:
+        /// tilting/rolling the head moves the model's eyes around the neck — no model-root
+        /// translation — just like the real head.
+        /// </summary>
+        private void ApplyHeadRotation()
+        {
+            if (m_headBone == null || HMD.Hmd == null)
+                return;
+
+            m_headBone.rotation = HMD.Hmd.transform.rotation * m_headRotOffset;
         }
 
         /// <summary>
@@ -447,19 +552,21 @@ namespace GTFO_VR.Core.VRSync
         /// (Locomotion.SetCrouchTarget) rather than moving the pelvis. BodyPos is
         /// lateral-only, so the squat/crouch lives here.
         ///
-        /// The user's head drop (NominalHeadHeight - HeadPos.y) is scaled by the game's
-        /// full-crouch head drop (camPosDefault.y - camPosCrouch.y) into a 0-1 blend. The
-        /// crouch clip then lowers the pelvis and bends the knees to keep the feet planted
-        /// on its own, and it blends with the walk cycle — so both the walk animation and
-        /// the foot planting are handled by the game, not by us. This is the same lever the
-        /// game uses for its own crouch (PLOC_Crouch.SyncEnter sets SetCrouchTarget(1)); we
-        /// just drive it continuously from the VR head height instead of snapping it to
-        /// full crouch on a state change.
+        /// The user's head drop is measured from the model's STANDING eye height
+        /// (camPosDefault.y, NOT the 1.8 nominal) and scaled by the full-crouch head drop
+        /// (camPosDefault.y - camPosCrouch.y) into a 0-1 blend. Referencing camPosDefault.y —
+        /// where the model's eyes actually sit when standing — is what makes the model's eyes
+        /// track the user's head height across the normal crouch range: at blend b the model's
+        /// eyes are at camPosDefault.y - b*drop, and b = (camPosDefault.y - HeadPos.y)/drop puts
+        /// them exactly on HeadPos.y. The crouch clip then lowers the pelvis and bends the knees
+        /// to keep the feet planted, blending with the walk cycle. This is the same lever the
+        /// game uses for its own crouch (PLOC_Crouch.SyncEnter sets SetCrouchTarget(1)); we just
+        /// drive it continuously from the VR head height instead of snapping it on a state change.
         ///
-        /// Depth is naturally bounded by the crouch clip's own range (blend 0-1): standing
-        /// ≈ the model's natural pose, and the deepest the bot crouches is the game's full
-        /// crouch — it can't crouch lower than its own animation allows (the real physical
-        /// limit, not an arbitrary pelvis cap).
+        /// Where the blend clamps (user stands TALLER than the model's standing eye height, or
+        /// crouches DEEPER than the game's full crouch) the model's eyes can't reach HeadPos.y,
+        /// so ApplyEyeVerticalCorrection nudges the model root vertically to close the gap (the
+        /// grounder re-plants the feet, so only the torso/eyes move).
         /// </summary>
         private void ApplyCrouchBlend()
         {
@@ -467,17 +574,36 @@ namespace GTFO_VR.Core.VRSync
             if (botLoco == null)
                 return;
 
-            // How far the user's head is below the nominal standing head height (1.8m).
-            // Standing ≈ 0; crouching > 0. A head above nominal (a jump) clamps to 0 so we
-            // never tell the bot to "un-crouch".
-            float headDrop = Mathf.Max(0f, VRSyncData.NominalHeadHeight - VRSyncData.HeadPos.y);
+            // How far the user's head is below the model's STANDING eye height (camPosDefault.y).
+            // Standing ≈ 0; crouching > 0. A head above the standing eye height clamps to 0 so
+            // we never tell the bot to "un-crouch".
+            float headDrop = Mathf.Max(0f, m_camPosDefaultY - VRSyncData.HeadPos.y);
 
             // Scale into the game's 0-1 crouch blend (1 = the game's full crouch).
-            float blend = (m_crouchHeadDrop > 0.001f)
+            m_crouchBlend = (m_crouchHeadDrop > 0.001f)
                 ? Mathf.Clamp01(headDrop / m_crouchHeadDrop)
                 : 0f;
 
-            botLoco.SetCrouchTarget(blend);
+            botLoco.SetCrouchTarget(m_crouchBlend);
+            ApplyEyeVerticalCorrection();
+        }
+
+        /// <summary>
+        /// Nudge the model root vertically so the model's EYES land on the HMD height
+        /// (HeadPos.y above the feet) wherever the crouch blend clamps. Between the clamps the
+        /// blend already puts the eyes on HeadPos.y (correction 0); at the top (standing taller
+        /// than the model's standing eye height) the eyes sit below and we shift the body UP;
+        /// at the bottom (crouching deeper than the game's full crouch) the eyes sit above and
+        /// we shift the body DOWN. The grounder re-plants the feet, so only the torso/eyes move.
+        /// Stored in m_eyeVerticalCorrection and applied to the model target in ApplyPose.
+        /// </summary>
+        private void ApplyEyeVerticalCorrection()
+        {
+            // The model's eye height above the feet at the current blend (linear between the
+            // standing and full-crouch camera heights).
+            float modelEyeHeight = m_camPosDefaultY - m_crouchBlend * m_crouchHeadDrop;
+            // Shift the body so the eyes are at the user's head height (positive = up).
+            m_eyeVerticalCorrection = VRSyncData.HeadPos.y - modelEyeHeight;
         }
 
         /// <summary>
@@ -636,7 +762,10 @@ namespace GTFO_VR.Core.VRSync
                 m_active = null;
             if (m_targetBot != null && m_ikConfigured)
             {
-                // Restore default IK state
+                // Restore default IK state: re-enable the look IK we disabled (the bot's
+                // own look driving resumes) and clear our target weights.
+                if (m_targetBot.SyncIK.m_lookIK != null)
+                    m_targetBot.SyncIK.m_lookIK.enabled = true;
                 m_targetBot.SyncIK.ZeroAllTargetWeights();
             }
             // Return the bot's weapon to the game's grip anchor (safe no-op if nothing driven).
