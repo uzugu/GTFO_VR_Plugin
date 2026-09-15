@@ -12,8 +12,17 @@ namespace GTFO_VR.Core.VRSync
     /// Written by VRPlayer on each pose update, read by the sender (network) or local test (bot).
     ///
     /// All positions and rotations are expressed in the "body frame":
-    ///   - position anchor: the player origin's world position (feet)
+    ///   - position anchor: the player's character position (the agent root, at the
+    ///     feet) — NOT the VR roomscale origin. The roomscale origin is pinned to the
+    ///     viewpoint (it counter-shifts on every roomscale teleport), so anchoring to
+    ///     it left the physical offset from the character un-referenced. The agent root
+    ///     is what a remote model is rooted at, so anchoring there makes the mirrored
+    ///     pose land on the remote body.
     ///   - frame rotation: the yaw of the user's actual body facing
+    ///
+    /// The head/hand/item positions are expressed relative to the anchor MINUS the
+    /// BodyPos slide (see below), i.e. relative to the slid body — the receiver places
+    /// them directly as local positions on its model root.
     ///
     /// Why not origin-local space: the in-game origin does not rotate when the VR user
     /// physically turns around (the character only turns via snap turn / aim), so
@@ -27,6 +36,21 @@ namespace GTFO_VR.Core.VRSync
     /// </summary>
     public static class VRSyncData
     {
+        /// <summary>
+        /// The whole-body slide, in the body frame: how far the user's body (≈ the HMD's
+        /// vertical axis) is offset from their character LATERALLY (roomscale movement
+        /// within the teleport window). Lateral only — its Y is always 0. Squatting /
+        /// crouching is NOT expressed here; the receiver derives the crouch depth from
+        /// (NominalHeadHeight - HeadPos.y) and drives the game's own crouch-anim blend
+        /// (Locomotion.SetCrouchTarget), whose clip lowers the pelvis and bends the knees
+        /// to keep the feet planted. The receiver applies the slide to the model root
+        /// (modelRoot = characterPos + modelYaw * BodyPos), smoothed to hide the roomscale
+        /// recentering sawtooth in the local test, so the entire body follows the lateral
+        /// movement, while the head/hand positions below keep their full height above
+        /// the ground.
+        /// </summary>
+        public static Vector3 BodyPos;
+
         public static Vector3 HeadPos;
         public static Quaternion HeadRot;
 
@@ -106,22 +130,76 @@ namespace GTFO_VR.Core.VRSync
         /// </summary>
         public static Quaternion DebugBodyYaw => m_bodyYaw;
 
+        // Nominal standing head height above the agent root (feet). The game's own
+        // Agent.EyePosition is exactly root + 1.8m, so a model rooted at its feet puts
+        // its head 1.8m up. The receiver drops the model's PELVIS — not the whole model
+        // root — by (this - HeadPos.y) so the head bone lands at the user's ACTUAL head
+        // height above the floor while the GrounderBipedIK bends the legs to keep the
+        // feet planted (sliding the model root vertically instead forced the grounder to
+        // span an impossible pelvis-to-foot distance, which read as a two-state bot
+        // "standing up straight" vs. "buried in ground" and offset the hands from the
+        // weapon). A per-frame constant, not a captured value: any latched "resting
+        // baseline" is measured from a single frame, and that frame can be mid-settle
+        // (the map-entry recenter fires before the character finishes dropping into the
+        // spawn, latching a head height ~25cm too high — the bot then stood "straighter
+        // than normal" with a stretched torso and sank waist-deep when the user
+        // crouched).
+        public const float NominalHeadHeight = 1.8f;
+
+        // Max plausible distance from the character's feet to the HMD. Standing the
+        // head sits ~1.8m above the feet and the user can roam ~1m within the roomscale
+        // window, so any sane offset is well under this. During scene transitions
+        // (elevator -> map) the two scenes sit at very different world Y (thousands of
+        // meters apart) and the HMD and the local agent are briefly in different world
+        // frames — an offset computed in that window jumps by hundreds of meters and is
+        // pure garbage.
+        private const float s_maxHeadRelMagnitude = 8f;
+
         public static void Sample()
         {
             if (!HMD.Hmd || !Controllers.MainController || !Controllers.OffhandController)
                 return;
 
             Transform hmd = HMD.Hmd.transform;
+            // The origin is still needed for the rotation conjugation below
+            // (the controller rotation offset is applied in the origin's frame),
+            // but the POSITION anchor is the character (agent root, at the feet) —
+            // see the class summary for why not the roomscale origin.
             Transform origin = hmd.parent;
             if (origin == null)
                 return;
+            LocalPlayerAgent agent = VRPlayer.PlayerAgent;
+            if (agent == null)
+                return;
+            Vector3 feet = agent.transform.position;
 
             Quaternion bodyYaw = EstimateBodyYaw(hmd);
             Quaternion bodyYawInv = Quaternion.Inverse(bodyYaw);
-            Vector3 originPos = origin.position;
 
-            // Head
-            HeadPos = bodyYawInv * (hmd.position - originPos);
+            // Head offset from the character (feet), body frame. Its lateral part is
+            // the user's physical offset from the character (roomscale within the
+            // teleport window); its vertical part is the head height above the feet.
+            Vector3 headRel = bodyYawInv * (hmd.position - feet);
+            if (headRel.magnitude > s_maxHeadRelMagnitude)
+            {
+                // Mid scene-transition (elevator -> map sit at very different world Y):
+                // the HMD and the local agent are briefly in different world frames.
+                // Hold the last good pose rather than mirroring a multi-thousand-meter
+                // jump for the few frames this takes to settle.
+                return;
+            }
+            // Whole-body slide, LATERAL ONLY: how far the user's body is offset from the
+            // character within the roomscale window. The vertical component is NOT moved
+            // here — squatting/crouching is expressed by the receiver dropping the model's
+            // pelvis (HeadPos.y < NominalHeadHeight), not by sliding the model root, so the
+            // GrounderBipedIK can bend the legs and keep the feet planted.
+            BodyPos = new Vector3(headRel.x, 0f, headRel.z);
+
+            // Head, relative to the slid body: 0 lateral, the user's actual head height
+            // above the floor (feet). The receiver's head/neck targets use this, and the
+            // pelvis drop (NominalHeadHeight - HeadPos.y) keeps the model's head bone at
+            // this height too.
+            HeadPos = headRel - BodyPos;
             HeadRot = bodyYawInv * hmd.rotation;
 
             Transform mainCtrl = Controllers.MainController.transform;
@@ -143,8 +221,8 @@ namespace GTFO_VR.Core.VRSync
             //     originRot * weaponOffset.inverse * originRot.inverse * ctrlRot
             // (conjugate the offset inverse by the origin rotation, because the offset is
             // applied in the origin's frame). This matches the position transform —
-            //     bodyYawInv * (ctrl.position - originPos) = bodyYawInv * originRot * posePosition
-            // which is the world offset — so position and rotation stay in the same frame.
+            //     bodyYawInv * (ctrl.position - feet) = bodyYawInv * (origin.position + originRot * posePosition - feet)
+            // which is the world offset from the anchor — so position and rotation stay in the same frame.
             Quaternion weaponOffsetInvWorld = origin.rotation * Quaternion.Inverse(Quaternion.Euler(VRConfig.configWeaponRotationOffset.Value, 0f, 0f)) * Quaternion.Inverse(origin.rotation);
 
             // The hands are sampled from the controller transforms (the actual tracked
@@ -153,17 +231,18 @@ namespace GTFO_VR.Core.VRSync
             // weapon-specific: a bullet weapon grips roughly naturally, but a hammer's
             // grip anchor sits offset and twisted, which mirrored onto the bot reads as
             // the hand "moving to the left and twisting". The controllers are parented
-            // to the same origin the HMD is (PlayerOrigin → SetOrigin), so their
-            // localPosition is the hand's offset from the origin — this tracks
-            // roomscale translation within the origin's threshold exactly like the head
-            // does (the old grip path decoupled hands from head, burying them in the
-            // torso when the user moved). The pose is therefore weapon-independent.
-            // Right-multiply the hand's frame-convention offset (see s_handConvention) onto
-            // the raw controller world rotation, in the local frame, so it follows the hand
-            // through pitches instead of rolling it.
-            RightHandPos = bodyYawInv * (mainCtrl.position - originPos);
+            // to the same origin the HMD is (PlayerOrigin → SetOrigin), so their world
+            // position tracks roomscale translation exactly like the head does (the
+            // old grip path decoupled hands from head, burying them in the torso when
+            // the user moved). The pose is therefore weapon-independent.
+            // Each position is the hand's offset from the character (feet), body frame,
+            // minus the BodyPos slide — i.e. relative to the slid body, exactly like
+            // the head. Right-multiply the hand's frame-convention offset
+            // (see s_handConvention) onto the raw controller world rotation, in the
+            // local frame, so it follows the hand through pitches instead of rolling it.
+            RightHandPos = bodyYawInv * (mainCtrl.position - feet) - BodyPos;
             RightHandRot = bodyYawInv * weaponOffsetInvWorld * mainCtrl.rotation * s_handConvention;
-            LeftHandPos = bodyYawInv * (offCtrl.position - originPos);
+            LeftHandPos = bodyYawInv * (offCtrl.position - feet) - BodyPos;
             LeftHandRot = bodyYawInv * weaponOffsetInvWorld * offCtrl.rotation * s_handConvention;
 
             // The tracked controller origin is at the palm, but the bot's IK hand target is its
@@ -179,13 +258,12 @@ namespace GTFO_VR.Core.VRSync
             // like the hands and head, so it lands in the mirrored hand on the remote model.
             // No VR offsets are removed — we transmit the actual displayed pose (which already
             // includes the grip + weapon offset), per the "no dealing with VR offsets" design.
-            LocalPlayerAgent heldAgent = VRPlayer.PlayerAgent;
-            ItemEquippable heldItem = (heldAgent != null && heldAgent.FPItemHolder != null)
-                ? heldAgent.FPItemHolder.WieldedItem
+            ItemEquippable heldItem = (agent.FPItemHolder != null)
+                ? agent.FPItemHolder.WieldedItem
                 : null;
             if (heldItem != null)
             {
-                HeldItemPos = bodyYawInv * (heldItem.transform.position - originPos);
+                HeldItemPos = bodyYawInv * (heldItem.transform.position - feet) - BodyPos;
                 HeldItemRot = bodyYawInv * heldItem.transform.rotation;
                 HeldItemName = heldItem.PublicName;
                 HeldItemSlot = heldItem.ItemDataBlock != null ? heldItem.ItemDataBlock.inventorySlot : default;

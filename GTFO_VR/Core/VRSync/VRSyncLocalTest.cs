@@ -36,12 +36,34 @@ namespace GTFO_VR.Core.VRSync
     /// agent's re-assert. VRSyncSyncIKAimUpdatePatch is diagnostics-only (a firing
     /// counter) for that reason.
     ///
+    /// The visual model slides with the VR user's physical movement: the model root is
+    /// rotated to the body yaw and offset from the bot's character by VRSyncData.BodyPos
+    /// (lateral roomscale within the teleport window). The vertical crouch is applied by
+    /// driving the game's OWN crouch animation blend (Locomotion.SetCrouchTarget) scaled to
+    /// the user's head drop: the crouch clip lowers the pelvis and bends the knees to keep
+    /// the feet planted on its own, and it blends with the walk cycle. We do NOT move the
+    /// pelvis manually (that drags the pelvis's child feet down with nothing to re-plant
+    /// them — the bot sank into the floor) and we do NOT force-toggle the grounder/BipedIK
+    /// (that killed the walk cycle). The bot's agent root / AI / character controller are
+    /// never touched — only the visual model.
+    ///
     /// Known limitations (phase 1):
-    ///   - The bot's model root keeps its own (AI-driven) facing. The VR user's body yaw
-    ///     is only used to stabilize the sampled pose; rotating the visual model with it
-    ///     (model slide/rotate) is later-phase work.
-    ///   - The head is look-driven (neck rotation); the model does not slide vertically
-    ///     with the VR head position.
+    ///   - The bot's agent root keeps its own (AI-driven) position; the slide is applied
+    ///     to the visual model only, so the body can be up to the roomscale window's
+    ///     size away from the bot's own collider. The model's world position is SMOOTHED
+    ///     (lerped, see s_modelPosSmoothTime) rather than snapped: BodyPos sawtooths as
+    ///     the game's roomscale recentering jumps the local character to keep the HMD
+    ///     stable, and for a local test bot that snap is un-canceled (the bot's position
+    ///     doesn't track it), so a straight assignment would jitter the model. In real
+    ///     P2P the synced character position cancels the sawtooth, so this smoothing is a
+    ///     local-test accommodation (a small, brief lag on the lateral slide is the cost).
+    ///   - The head is look-driven (neck rotation). Vertical crouch is NOT applied to the
+    ///     model root (which stays grounded, lateral-only): the crouch ANIMATION blend is
+    ///     driven to (NominalHeadHeight - HeadPos.y) / (the game's full-crouch head drop),
+    ///     so the crouch clip lowers the hips and bends the knees to the user's depth
+    ///     (standing ≈ the model's natural pose; crouching lowers the hips, not the body).
+    ///   - [TEST-ONLY] ApplyCrouchBlend() drives that blend so the bot's crouch depth
+    ///     mirrors the VR user's; in real P2P the game's own crouch sync already does this.
     /// </summary>
     public class VRSyncLocalTest : MonoBehaviour
     {
@@ -54,6 +76,21 @@ namespace GTFO_VR.Core.VRSync
         private Transform m_rightArmTarget;
         private Transform m_leftArmTarget;
         private Transform m_lookTarget;
+        // The game's full-crouch head drop (camPosDefault.y - camPosCrouch.y), used to
+        // scale the user's head drop into the 0-1 crouch-anim blend. See SetupTargetBot /
+        // ApplyCrouchBlend.
+        private float m_crouchHeadDrop;
+        // Smoothed visual-model world position (see ApplyPose). BodyPos sawtooths as the
+        // roomscale recentering (PlayerOrigin.updateRoomscale) jumps the LOCAL character
+        // toward the HMD to keep the HMD's world position stable. In real P2P that snap is
+        // canceled by the synced character position, but here the bot's position is its own
+        // AI position (it doesn't track that jump), so the snap would otherwise jitter the
+        // model. We lerp the model toward its target instead of snapping it; the lerp is
+        // skipped (snapped) on a new bot and on a large jump (teleport).
+        private Vector3 m_smoothModelPos;
+        private bool m_hasSmoothModelPos;
+        private const float s_modelPosSmoothTime = 0.1f;
+        private const float s_teleportSnapDist = 1.0f;
         private bool m_ikConfigured;
         private bool m_hasRightArmIK;
         private int m_lastApplyFrame = -1;
@@ -194,10 +231,14 @@ namespace GTFO_VR.Core.VRSync
             float botYaw = m_targetBot.transform.rotation.eulerAngles.y;
             float modelYaw = m_targetBot.PlayerSyncModel.transform.rotation.eulerAngles.y;
             Vector3 handOff = VRSyncData.DebugHandPalmOffset;
+            Vector3 bodyPos = VRSyncData.BodyPos;
             bool gripAnchored = !VRSyncData.IsMelee && VRSyncData.HasHeldItem
                 && m_botWeapon != null && m_botWeapon.RightHandGripTrans != null;
             Log.Info($"VRSync DIAG: bodyYaw={bodyYaw:F0} hmdYaw={hmdYaw:F0} " +
                      $"botYaw={botYaw:F0} modelYaw={modelYaw:F0} " +
+                     $"bodyPos=({bodyPos.x:F2},{bodyPos.y:F2},{bodyPos.z:F2}) " +
+                     $"headY={VRSyncData.HeadPos.y:F2} " +
+                     $"crouchDrop={VRSyncData.NominalHeadHeight - VRSyncData.HeadPos.y:F2} crouchScale={m_crouchHeadDrop:F2} " +
                      $"lookW={ik.m_lookWeight:F2} lookIKenabled={ik.m_lookIK.enabled} " +
                      $"gripAnchored={gripAnchored} isMelee={VRSyncData.IsMelee} hasItem={VRSyncData.HasHeldItem} " +
                      $"handOffset=({handOff.x:F3},{handOff.y:F3},{handOff.z:F3}) " +
@@ -227,6 +268,9 @@ namespace GTFO_VR.Core.VRSync
                 m_botWeaponOriginalParent = null;
                 // [TEST-ONLY] Reset the slot-match log latch (see TryForceBotSlotMatch).
                 m_lastForcedSlot = Player.InventorySlot.None;
+                // New bot: snap the smoothed model position (don't lerp from the previous
+                // bot's position across the map).
+                m_hasSmoothModelPos = false;
                 Log.Info($"VRSyncLocalTest: Found target bot: {agent.gameObject.name}");
 
                 // Invisible IK target transforms, parented to the bot's sync model.
@@ -234,6 +278,16 @@ namespace GTFO_VR.Core.VRSync
                 m_rightArmTarget = CreateTargetTransform("VRSync_RightArmTarget");
                 m_leftArmTarget = CreateTargetTransform("VRSync_LeftArmTarget");
                 m_lookTarget = CreateTargetTransform("VRSync_LookTarget");
+
+                // Crouch: drive the game's OWN crouch-anim blend (see ApplyCrouchBlend). The
+                // blend scales the user's head drop by the game's full-crouch head drop
+                // (camPosDefault.y - camPosCrouch.y), so the crouch clip lowers the pelvis
+                // and bends the knees to the user's depth. No pelvis transform needed — we
+                // never move the skeleton ourselves anymore.
+                var pd = m_targetBot.PlayerData;
+                m_crouchHeadDrop = (pd != null)
+                    ? Mathf.Max(0.05f, pd.camPosDefault.y - pd.camPosCrouch.y)
+                    : 0.4f;
 
                 // The right arm IK needs special handling: PlayerSyncIK.Setup() zeroes
                 // its position weight, PLOC_Stand.SyncEnter zeroes it again on every
@@ -300,6 +354,43 @@ namespace GTFO_VR.Core.VRSync
             // body-frame sample values map directly to its local transforms.
             m_targetBot.PlayerSyncModel.transform.rotation = VRSyncData.DebugBodyYaw;
 
+            // Slide the visual model LATERALLY so the whole body follows the VR user's
+            // physical offset from their character (roomscale within the teleport window).
+            // BodyPos is lateral-only now (its Y is 0); the vertical crouch is applied in
+            // ApplyCrouchBlend below by driving the game's own crouch-anim blend (which
+            // lowers the pelvis and bends the knees to keep the feet planted).
+            // BodyPos is body-frame and the model's rotation is the body yaw (set above),
+            // so it maps directly onto it. The head/hand/item targets below are already
+            // expressed relative to this slid body (VRSyncData subtracts BodyPos from
+            // them), so nothing else changes. The agent root / AI / controller stay put —
+            // only the visual model moves.
+            //
+            // Smooth the model's world position rather than snapping it: BodyPos sawtooths
+            // as the roomscale recentering jumps the local character to keep the HMD stable
+            // (see s_modelPosSmoothTime). For a local test bot the snap is un-canceled, so a
+            // straight assignment jitters the model; the lerp filters it out. Snap (skip the
+            // lerp) on a new bot or a large jump so we never drag across the map.
+            Vector3 modelTarget =
+                m_targetBot.transform.position + m_targetBot.PlayerSyncModel.transform.rotation * VRSyncData.BodyPos;
+            if (!m_hasSmoothModelPos
+                || (modelTarget - m_smoothModelPos).sqrMagnitude > s_teleportSnapDist * s_teleportSnapDist)
+            {
+                m_smoothModelPos = modelTarget;
+                m_hasSmoothModelPos = true;
+            }
+            else
+            {
+                float t = 1f - Mathf.Exp(-Time.unscaledDeltaTime / s_modelPosSmoothTime);
+                m_smoothModelPos = Vector3.Lerp(m_smoothModelPos, modelTarget, t);
+            }
+            m_targetBot.PlayerSyncModel.transform.position = m_smoothModelPos;
+
+            // Vertical crouch: drive the game's own crouch-anim blend so the crouch clip
+            // lowers the pelvis and bends the knees to the user's depth (see
+            // ApplyCrouchBlend). In real P2P the game's own crouch sync does this; here we
+            // drive it from the VR head height.
+            ApplyCrouchBlend();
+
             // Place (or release) the bot's own weapon FIRST: the arm targets below may
             // anchor to this weapon's grips, so the weapon must already be posed.
             PlaceOrReleaseBotWeapon();
@@ -349,6 +440,44 @@ namespace GTFO_VR.Core.VRSync
             // ahead of it, so the head faces the model's facing (= the VR body facing).
             m_lookTarget.localPosition = VRSyncData.HeadPos + VRSyncData.HeadRot * (Vector3.forward * 2f);
             ik.SetLookTarget(m_lookTarget);
+        }
+
+        /// <summary>
+        /// Apply the vertical crouch by driving the game's OWN crouch-anim blend
+        /// (Locomotion.SetCrouchTarget) rather than moving the pelvis. BodyPos is
+        /// lateral-only, so the squat/crouch lives here.
+        ///
+        /// The user's head drop (NominalHeadHeight - HeadPos.y) is scaled by the game's
+        /// full-crouch head drop (camPosDefault.y - camPosCrouch.y) into a 0-1 blend. The
+        /// crouch clip then lowers the pelvis and bends the knees to keep the feet planted
+        /// on its own, and it blends with the walk cycle — so both the walk animation and
+        /// the foot planting are handled by the game, not by us. This is the same lever the
+        /// game uses for its own crouch (PLOC_Crouch.SyncEnter sets SetCrouchTarget(1)); we
+        /// just drive it continuously from the VR head height instead of snapping it to
+        /// full crouch on a state change.
+        ///
+        /// Depth is naturally bounded by the crouch clip's own range (blend 0-1): standing
+        /// ≈ the model's natural pose, and the deepest the bot crouches is the game's full
+        /// crouch — it can't crouch lower than its own animation allows (the real physical
+        /// limit, not an arbitrary pelvis cap).
+        /// </summary>
+        private void ApplyCrouchBlend()
+        {
+            var botLoco = m_targetBot.Locomotion;
+            if (botLoco == null)
+                return;
+
+            // How far the user's head is below the nominal standing head height (1.8m).
+            // Standing ≈ 0; crouching > 0. A head above nominal (a jump) clamps to 0 so we
+            // never tell the bot to "un-crouch".
+            float headDrop = Mathf.Max(0f, VRSyncData.NominalHeadHeight - VRSyncData.HeadPos.y);
+
+            // Scale into the game's 0-1 crouch blend (1 = the game's full crouch).
+            float blend = (m_crouchHeadDrop > 0.001f)
+                ? Mathf.Clamp01(headDrop / m_crouchHeadDrop)
+                : 0f;
+
+            botLoco.SetCrouchTarget(blend);
         }
 
         /// <summary>
