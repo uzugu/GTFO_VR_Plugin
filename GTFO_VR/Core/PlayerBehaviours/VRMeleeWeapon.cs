@@ -159,7 +159,10 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void TurnChargeLightOff()
         {
-            m_chargeupIndicatorLight.enabled = false;
+            if (m_chargeupIndicatorLight)
+            {
+                m_chargeupIndicatorLight.enabled = false;
+            }
         }
 
         private void Update()
@@ -168,11 +171,14 @@ namespace GTFO_VR.Core.PlayerBehaviours
             {
                 return;
             }
-            if (m_weapon.Owner && m_weapon.Owner.IsLocallyOwned)
+            if (m_weapon && m_weapon.Owner && m_weapon.Owner.IsLocallyOwned)
             {
                 UpdateDamagePositionAndVelocity();
                 ForceDamageRefPosition();
-                m_chargeupIndicatorLight.transform.position = m_damageRefTipPositionTracker.GetLatestPosition();
+                if (m_chargeupIndicatorLight)
+                {
+                    m_chargeupIndicatorLight.transform.position = m_damageRefTipPositionTracker.GetLatestPosition();
+                }
             }
 
 #if DEBUG_GTFO_VR
@@ -533,8 +539,19 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void OnDestroy()
         {
+            CancelInvoke();
             VRMeleeWeaponEvents.OnHammerHalfCharged -= WeaponHalfCharged;
             VRMeleeWeaponEvents.OnHammerFullyCharged -= WeaponFullyCharged;
+
+            if (m_chargeupIndicatorLight)
+            {
+                Destroy(m_chargeupIndicatorLight.gameObject);
+            }
+
+            if (Current == this)
+            {
+                Current = null;
+            }
         }
     }
 }

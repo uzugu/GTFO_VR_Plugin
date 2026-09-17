@@ -16,6 +16,7 @@ namespace GTFO_VR.Core.UI
         List<SpriteRenderer> m_holoBGs = new List<SpriteRenderer>();
         Light m_light;
         GameObject m_holoHolder;
+        bool m_destroyed;
 
         Vector3 offset = new Vector3(-.1f, 0, 0);
 
@@ -23,6 +24,7 @@ namespace GTFO_VR.Core.UI
 
         public void Setup()
         {
+            m_destroyed = false;
             m_holoHolder = new GameObject("WeaponHoloText");
 
             AddSubText(m_holoHolder.transform, .0f);
@@ -68,8 +70,10 @@ namespace GTFO_VR.Core.UI
 
         private void AmmoUpdate(InventorySlotAmmo item, int clipLeft)
         {
-            if (ItemEquippableEvents.IsCurrentItemShootableWeapon() &&
-                ItemEquippableEvents.currentItem.ItemDataBlock.inventorySlot.Equals(item.Slot))
+            ItemEquippable current = ItemEquippableEvents.currentItem;
+            if (!m_destroyed && current && current.ItemDataBlock != null &&
+                ItemEquippableEvents.IsCurrentItemShootableWeapon() &&
+                current.ItemDataBlock.inventorySlot.Equals(item.Slot))
             {
                 SetText(clipLeft.ToString());
             }
@@ -77,58 +81,95 @@ namespace GTFO_VR.Core.UI
 
         void Toggle(bool toggle)
         {
+            if (m_destroyed || !m_holoHolder)
+            {
+                return;
+            }
+
             if (!VRConfig.configWeaponAmmoHoloText.Value)
             {
                 toggle = false;
             }
             foreach(TextMeshPro t in m_holoTextDisplays)
             {
-                t.enabled = toggle;
-                t.ForceMeshUpdate(false);
+                if (t)
+                {
+                    t.enabled = toggle;
+                }
             }
             foreach(SpriteRenderer r in m_holoBGs)
             {
-                r.enabled = toggle;
+                if (r)
+                {
+                    r.enabled = toggle;
+                }
             }
-            m_light.enabled = toggle;
+            if (m_light)
+            {
+                m_light.enabled = toggle;
+            }
         }
 
         void SetText(string text)
         {
+            if (m_destroyed || !m_holoHolder)
+            {
+                return;
+            }
+
             foreach(TextMeshPro t in m_holoTextDisplays)
             {
-                t.text = text;
-                t.ForceMeshUpdate(false);
+                if (t)
+                {
+                    t.text = text;
+                }
             }
         }
 
         private void ChangedWeapon(ItemEquippable e)
         {
-            if(ItemEquippableEvents.IsCurrentItemShootableWeapon() && PlayerLocomotionEvents.InControllablePLOCState())
+            if (m_destroyed || !m_holoHolder)
+            {
+                return;
+            }
+
+            ItemEquippable current = ItemEquippableEvents.currentItem;
+            if (current && current.MuzzleAlign && ItemEquippableEvents.IsCurrentItemShootableWeapon() && PlayerLocomotionEvents.InControllablePLOCState())
             {
                 Toggle(true);
-                m_holoHolder.transform.SetParent(ItemEquippableEvents.currentItem.MuzzleAlign);
             } else
             {
                 Toggle(false);
-                m_holoHolder.transform.SetParent(null);
             }
         }
 
         void OnDestroy()
         {
+            m_destroyed = true;
             ItemEquippableEvents.OnPlayerWieldItem -= ChangedWeapon;
             InventoryAmmoEvents.OnInventoryAmmoUpdate -= AmmoUpdate;
             VRConfig.configWeaponAmmoHoloText.SettingChanged -= HoloToggled;
             FocusStateEvents.OnFocusStateChange -= StateChange;
             PlayerLocomotionEvents.OnStateChange -= PLOCStateChange;
+
+            if (m_holoHolder)
+            {
+                Destroy(m_holoHolder);
+            }
+            m_holoTextDisplays.Clear();
+            m_holoBGs.Clear();
         }
 
         internal void UpdateTransform()
         {
-            if(ItemEquippableEvents.IsCurrentItemShootableWeapon())
+            if (m_destroyed || !m_holoHolder)
             {
-                ItemEquippable current = ItemEquippableEvents.currentItem;
+                return;
+            }
+
+            ItemEquippable current = ItemEquippableEvents.currentItem;
+            if (current && current.MuzzleAlign && ItemEquippableEvents.IsCurrentItemShootableWeapon())
+            {
                 m_holoHolder.transform.rotation = Quaternion.LookRotation(current.MuzzleAlign.forward, current.MuzzleAlign.up);
                 Vector3 posOffset = VRConfig.configUseLeftHand.Value ? -offset : offset;
                 float muzzleDistance = (current.transform.position - current.MuzzleAlign.position).magnitude;

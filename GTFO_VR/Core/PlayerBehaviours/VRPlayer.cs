@@ -104,7 +104,14 @@ namespace GTFO_VR.Core.PlayerBehaviours
             m_origin.UpdateOrigin();
             UpdateVRCameraTransform(FpsCamera);
             UpdateHeldItemTransform();
-            m_weaponAmmoHolo.UpdateTransform();
+            if (m_pointer)
+            {
+                m_pointer.UpdateTransform();
+            }
+            if (m_weaponAmmoHolo)
+            {
+                m_weaponAmmoHolo.UpdateTransform();
+            }
             //UpdateHandIK();
         }
 

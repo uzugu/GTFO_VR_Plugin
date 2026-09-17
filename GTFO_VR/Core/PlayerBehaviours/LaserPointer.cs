@@ -22,6 +22,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private GameObject m_thermalDot;
         private GameObject m_thermalPointer;
+        private Transform m_muzzleAlign;
 
         private readonly float m_thickness = 1f / 400f;
 
@@ -49,7 +50,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void LaserPointerColorChanged(object sender, EventArgs e)
         {
-            if(!m_setup) 
+            if (!m_setup || !m_pointer || !m_dot)
             {
                 return;
             }
@@ -66,19 +67,19 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void FixedUpdate()
         {
-            if (transform.parent == null)
+            if (!UpdateTransform())
             {
                 return;
             }
             float dist = 50f;
 
-            Ray raycast = new Ray(transform.parent.position, transform.parent.forward);
+            Ray raycast = new Ray(m_muzzleAlign.position, m_muzzleAlign.forward);
             bool bHit = Physics.Raycast(raycast, out RaycastHit hit, 51f, LayerManager.MASK_BULLETWEAPON_RAY, QueryTriggerInteraction.Ignore);
 
             if (bHit && hit.distance < 100f)
             {
                 // Offset the hit location so dot doesn't get buried in geometry. Colliders are not always very accurate.
-                Vector3 offsetHit = (transform.parent.position - hit.point).normalized * 0.1f;  // Offset vector
+                Vector3 offsetHit = (m_muzzleAlign.position - hit.point).normalized * 0.1f;  // Offset vector
                 dist = hit.distance - offsetHit.magnitude;
 
                 if (!m_dot.active && VRConfig.configUseLaserPointerOnWeapons.Value)
@@ -97,35 +98,54 @@ namespace GTFO_VR.Core.PlayerBehaviours
             m_pointer.transform.localPosition = new Vector3(0f, 0f, dist / 2f);
         }
 
+        internal bool UpdateTransform()
+        {
+            if (!m_muzzleAlign)
+            {
+                m_muzzleAlign = null;
+                TogglePointer(false);
+                return false;
+            }
+
+            transform.SetPositionAndRotation(m_muzzleAlign.position, m_muzzleAlign.rotation);
+            return true;
+        }
+
         public void PlayerChangedItem(ItemEquippable item)
         {
-            if (!m_setup || item == null)
+            if (!m_setup)
             {
                 return;
             }
 
-            if (item.HasFlashlight && item.AmmoType != Player.AmmoType.None)
+            if (item && item.MuzzleAlign && item.HasFlashlight && item.AmmoType != Player.AmmoType.None)
             {
                 SetHolderTransform(item.MuzzleAlign);
                 TogglePointer(VRConfig.configUseLaserPointerOnWeapons.Value);
             }
             else
             {
+                m_muzzleAlign = null;
                 TogglePointer(false);
             }
         }
 
         private void TogglePointer(bool toggle)
         {
-            m_pointer.SetActive(toggle);
-            m_dot.SetActive(toggle);
+            if (m_pointer)
+            {
+                m_pointer.SetActive(toggle);
+            }
+            if (m_dot)
+            {
+                m_dot.SetActive(toggle);
+            }
         }
 
         private void SetHolderTransform(Transform t)
         {
-            transform.SetParent(t);
-            transform.localPosition = Vector3.zero;
-            transform.localRotation = Quaternion.identity;
+            m_muzzleAlign = t;
+            transform.SetPositionAndRotation(t.position, t.rotation);
 
             m_pointer.transform.localScale = new Vector3(m_thickness, m_thickness, 100f);
             m_pointer.transform.localPosition = new Vector3(0.0f, 0.0f, 50f);
@@ -229,6 +249,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void OnDestroy()
         {
+            m_muzzleAlign = null;
             VRConfig.configUseLaserPointerOnWeapons.SettingChanged -= LaserPointerToggled;
             VRConfig.configLaserPointerColor.SettingChanged -= LaserPointerColorChanged;
             ItemEquippableEvents.OnPlayerWieldItem -= PlayerChangedItem;

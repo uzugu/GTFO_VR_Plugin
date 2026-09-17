@@ -331,7 +331,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
             Controllers.OnOriginDestroyed();
             HMD.OnOriginDestroyed();
             FocusStateEvents.OnFocusStateChange -= FocusStateChanged;
-            Snapturn.OnSnapTurn += HandleOriginShift;
+            Snapturn.OnSnapTurn -= HandleOriginShift;
         }
     }
 }
