@@ -5,7 +5,9 @@ using RootMotion;
 namespace GTFO_VR.Injections.GameHooks
 {
     /// <summary>
-    /// Authoritative application point for the VRSync local test's pose.
+    /// Authoritative application point for the VRSync poses: the local test's pose and
+    /// the P2P network poses (VRSyncNet.Tick — apply received remote poses + throttled
+    /// beacon/pose sends).
     ///
     /// RootMotion solvers solve in SolverManager.LateUpdate. A prefix on the first
     /// solver's LateUpdate runs after every agent's Update-phase target/weight re-assert
@@ -14,8 +16,7 @@ namespace GTFO_VR.Injections.GameHooks
     /// reliable (each agent's re-assert clobbers a pose set for a different agent), so
     /// this LateUpdate point is the single authoritative applier. A plain LateUpdate in
     /// VRSyncLocalTest is a backstop; the per-frame guard makes a double application in
-    /// the same frame a no-op. The hook is a cheap no-op when no VRSyncLocalTest is
-    /// active.
+    /// the same frame a no-op. The hook is a cheap no-op when nothing is active.
     /// </summary>
     [HarmonyPatch(typeof(SolverManager), "LateUpdate")]
     internal class VRSyncSolverLateUpdatePatch
@@ -26,6 +27,7 @@ namespace GTFO_VR.Injections.GameHooks
         {
             FiredCount++;
             VRSyncLocalTest.ApplyPoseBeforeSolvers();
+            VRSyncNet.Tick();
         }
     }
 }

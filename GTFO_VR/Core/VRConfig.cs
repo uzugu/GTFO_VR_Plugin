@@ -56,6 +56,10 @@ namespace GTFO_VR.Core
 
         internal static ConfigEntry<bool> configProtube;
 
+        internal static ConfigEntry<bool> configVRSyncP2P;
+        internal static ConfigEntry<float> configVRSyncPoseRate;
+        internal static ConfigEntry<float> configVRSyncBeaconCadence;
+
         private static List<BepinGTFOSettingBase> VRSettings = new List<BepinGTFOSettingBase>();
 
         private static uint baseVRConfigID = 110000;
@@ -131,6 +135,14 @@ namespace GTFO_VR.Core
             configUseVisualHammerIndicator = BindBool(file, "Misc", "Show light for melee weapon charge?", true, "If true, will show a light indicator when hammer is half/fully charged", "Flash on 50%/100% charge");
             configUseOldHammer = BindBool(file, "Misc", "Use old melee weapon swing?", false, "If true, will use the in-game system for melee that uses animations and moves by itself.", "(OLD) Auto-swing melee");
 
+            BindHeader("VR Sync");
+            configVRSyncP2P = BindBool(file, "VR Sync", "Sync your VR pose with other players?", true,
+                "If true, your VR upper-body pose (body, head, arms, held item) is sent to other players with the VR mod, and their VR pose is applied to how they look to you. Players without the VR mod are unaffected and won't notice this.",
+                "VR pose sync (P2P)");
+            configVRSyncPoseRate = BindFloat(file, "VR Sync", "VR pose send rate (Hz)", 20f, 5f, 60f,
+                "How often your VR pose is sent to VR-modded players", "Pose rate (Hz)");
+            configVRSyncBeaconCadence = BindFloat(file, "VR Sync", "VR capability beacon interval (s)", 3f, 0.5f, 10f,
+                "How often a short signal is sent so peers can discover that you run VR pose sync", "Beacon interval (s)");
 
             BindHeader("Rendering");
 

@@ -1,0 +1,545 @@
+using GTFO_VR.Core;
+using Player;
+using UnityEngine;
+
+namespace GTFO_VR.Core.VRSync
+{
+    /// <summary>
+    /// Applies a received pVRPose (VRSyncNet) to one remote player's visual model.
+    ///
+    /// Per-agent port of the VRSyncLocalTest apply pipeline. The game re-asserts its
+    /// own aim/look targets and IK weights every frame in the Update phase, and the
+    /// RootMotion solvers solve in LateUpdate, so the pose is (re)applied every frame
+    /// from VRSyncNet.Tick() — called by VRSyncSolverLateUpdatePatch inside the first
+    /// solver's LateUpdate — after every Update-phase re-assert and before any solver
+    /// solves, so our write wins for the frame.
+    ///
+    /// What is driven (visual only — the agent root, AI, character controller and
+    /// origin are never touched):
+    ///   - model root: rotated to the received BodyYaw (the sender's smoothed HMD
+    ///     yaw), slid laterally from the (game-synced) character position by the
+    ///     received BodyPos
+    ///   - both arms: LimbIK targets at the received hand poses; for a non-melee
+    ///     held item the gripping hand(s) anchor to the agent's OWN item grips, so
+    ///     the hand sits on the item (same rule as the local test)
+    ///   - head: the model head bone's WORLD rotation is set to the received HeadRot
+    ///     (full yaw + pitch + roll; the game's LookAtIK can't roll, so it is
+    ///     disabled on the agent while we drive the head)
+    ///   - crouch depth: the game's OWN crouch-anim blend (Locomotion.SetCrouchTarget)
+    ///     driven from the received HeadPos.y, so the crouch clip lowers the pelvis
+    ///     and bends the knees to the SENDER'S physical head height — independent of
+    ///     the sender's in-game crouch button state
+    ///   - height above standing: the spine is leaned back (ApplyStandUp) so a taller
+    ///     sender's head lands at its height without scaling the rig (which would
+    ///     scale the weapon) or shifting the model root (the grounder would cancel it)
+    ///   - held item: the remote's OWN Inventory.WieldedItem is re-parented to the
+    ///     model root and posed at the received HeldItemPos/Rot
+    /// </summary>
+    public class VRSyncPoseApplier
+    {
+        public readonly PlayerAgent Agent;
+        public readonly ulong SenderID;
+        public pVRPose LatestPose;
+
+        private Transform m_rightArmTarget;
+        private Transform m_leftArmTarget;
+        // The model HEAD bone we drive directly (see ApplyHeadRotation). The game's
+        // LookAtIK only aligns the head's forward (a shortest-arc), so it can yaw+pitch
+        // but never roll; we own the head rotation to get full pitch + roll.
+        private Transform m_headBone;
+        // The model NECK bone — the head's rotation pivot / diagnostics reference.
+        private Transform m_neckBone;
+        // Calibration offset on top of the received head rotation. Identity by default.
+        private Quaternion m_headRotOffset = Quaternion.identity;
+        // The game's full-crouch head drop (camPosDefault.y - camPosCrouch.y), used to
+        // scale the sender's head drop into the 0-1 crouch-anim blend.
+        private float m_crouchHeadDrop;
+        // The game's standing camera (eye) height, camPosDefault.y: the reference for
+        // both the crouch blend (head below it → crouch) and the spine straighten
+        // (head above it → lean the spine back to raise the head to HeadPos.y).
+        private float m_camPosDefaultY;
+        // The crouch-anim blend computed this frame (0=stand, 1=full crouch).
+        private float m_crouchBlend;
+        // The model SPINE bone (Animator.GetBoneTransform(Spine)). When the sender is
+        // TALLER than the model's standing eye height, the standing/aiming clip's
+        // forward-leaned torso leaves the head short; we lean the spine BACK toward
+        // upright by a corrective rotation about the body's local X axis (see
+        // ApplyStandUp). Spine is a SIBLING of the leg UpLegs under Hips, so rotating
+        // it raises the torso+head while the FEET stay planted and the weapon keeps
+        // its natural size.
+        private Transform m_spineBone;
+        // The smoothed spine-lean angle actually applied this frame (lerped toward the
+        // target angle computed from the head-height deficit). 0 = the clip's pose.
+        private float m_standUpAngle;
+        private const float s_standUpSmoothTime = 0.05f;
+        // Degrees of spine lean per meter of head-height deficit (visual tuning).
+        private const float s_standUpAnglePerMeter = 120f;
+        // Cap on the spine lean: a real person can only straighten so far.
+        private const float s_standUpMaxAngle = 30f;
+        // Smoothed visual-model world position (see ApplyPose). The (synced character
+        // position + rotation * BodyPos) sum is continuous through the sender's
+        // roomscale recentering (the recentering jumps the sender's character, which we
+        // receive synced, while BodyPos — relative to the sender's current feet — jumps
+        // by the inverse, so the sum doesn't move). What's left to filter is the 20 Hz
+        // quantization of BodyPos plus packet drops, so a short lerp is enough; a longer
+        // one (the local test used 0.1f against an un-canceled sawtooth) would add a
+        // visible lag on top of the game's own sync interpolation. Snapped on a new
+        // agent or a large jump (map teleport / spawn).
+        private Vector3 m_smoothModelPos;
+        private bool m_hasSmoothModelPos;
+        private const float s_modelPosSmoothTime = 0.03f;
+        private const float s_teleportSnapDist = 1.0f;
+        private bool m_ikConfigured;
+        private bool m_hasRightArmIK;
+
+        // The agent's own weapon, re-parented to the model root and driven to the
+        // sender's held-item pose (see PlaceOrReleaseWeapon). We remember its original
+        // grip-anchor parent + local transform so we can return it to the agent's
+        // normal hold when we stop driving it (Dispose, item switch).
+        private ItemEquippable m_botWeapon;
+        private Transform m_botWeaponOriginalParent;
+        private Vector3 m_botWeaponOriginalLocalPos;
+        private Quaternion m_botWeaponOriginalLocalRot;
+
+        public VRSyncPoseApplier(PlayerAgent agent, ulong senderID)
+        {
+            Agent = agent;
+            SenderID = senderID;
+        }
+
+        /// <summary>
+        /// One-time setup for this agent (bones, reference heights, IK enablement).
+        /// Returns false if the agent's model/IK is not ready yet (the next pose
+        /// packet retries).
+        /// </summary>
+        public bool TryInitialize()
+        {
+            if (Agent.PlayerSyncModel == null || Agent.SyncIK == null)
+                return false;
+
+            // Invisible IK target transforms, parented to the agent's sync model.
+            // World-space position + rotation are set on them every frame.
+            m_rightArmTarget = CreateTargetTransform("VRSync_RightArmTarget");
+            m_leftArmTarget = CreateTargetTransform("VRSync_LeftArmTarget");
+
+            // Reference heights (see ApplyVerticalHeight / ApplyStandUp): the reference
+            // is the game's STANDING camera (eye) height camPosDefault.y (NOT the 1.8
+            // nominal): that's where the model's eyes actually sit when standing, so
+            // crouching below it and straightening above it both land the eyes on the
+            // sender's head height.
+            var pd = Agent.PlayerData;
+            m_crouchHeadDrop = (pd != null)
+                ? Mathf.Max(0.05f, pd.camPosDefault.y - pd.camPosCrouch.y)
+                : 0.4f;
+            m_camPosDefaultY = (pd != null) ? pd.camPosDefault.y : VRSyncData.NominalHeadHeight;
+
+            // Spine bone for the tall-sender straighten (see ApplyStandUp).
+            m_spineBone = (Agent.AnimatorBody != null && Agent.AnimatorBody.isHuman)
+                ? Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.Spine)
+                : null;
+            m_standUpAngle = 0f;
+
+            // Head rotation (see ApplyHeadRotation): capture the exact bone the look IK
+            // rotates (solver.head), falling back to the humanoid head bone.
+            var lookIK = Agent.SyncIK.m_lookIK;
+            m_headBone = (lookIK != null && lookIK.solver != null)
+                ? lookIK.solver.head.transform
+                : null;
+            if (m_headBone == null && Agent.AnimatorBody != null
+                && Agent.AnimatorBody.isHuman)
+            {
+                m_headBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.Head);
+            }
+            m_neckBone = Agent.PlayerSyncModel.m_neckBone;
+            if (m_neckBone == null && Agent.AnimatorBody != null
+                && Agent.AnimatorBody.isHuman)
+            {
+                m_neckBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.Neck);
+            }
+            Log.Info($"VRSyncPoseApplier: {Agent.gameObject.name} " +
+                     $"head={(m_headBone != null ? m_headBone.name : "<none>")} " +
+                     $"neck={(m_neckBone != null ? m_neckBone.name : "<none>")} " +
+                     $"spine={(m_spineBone != null ? m_spineBone.name : "<none>")} " +
+                     $"camStandY={m_camPosDefaultY:F2} crouchDrop={m_crouchHeadDrop:F2}");
+
+            // The right arm IK needs special handling: PlayerSyncIK.Setup() zeroes its
+            // position weight, PLOC_Stand.SyncEnter zeroes it again on every state
+            // entry, and PlayerSyncIK.Enable() never re-enables the component. Enable
+            // the component here and re-assert the weight every frame.
+            m_hasRightArmIK = Agent.SyncIK.m_rightArmIK != null;
+            if (m_hasRightArmIK)
+                Agent.SyncIK.m_rightArmIK.enabled = true;
+
+            if (!Agent.SyncIK.IsEnabled())
+                Agent.SyncIK.SoftEnable();
+
+            m_hasSmoothModelPos = false;
+            m_ikConfigured = true;
+            return true;
+        }
+
+        public void ApplyPose()
+        {
+            if (!Agent || !Agent.PlayerSyncModel || !Agent.SyncIK)
+                return;
+
+            pVRPose p = LatestPose;
+            var ik = Agent.SyncIK;
+
+            // The game can call Disable() from its own state logic, which sets
+            // m_enabled = false (UpdateIK then early-returns and the weight blend
+            // stays at 0) and disables every IK component. Re-enable the update loop
+            // so the weights below actually take effect.
+            if (!ik.IsEnabled())
+                ik.SoftEnable();
+
+            // Re-assert weights every frame: the game re-asserts its own on every state
+            // entry (PLOC_Stand zeroes the right arm weight, weapon equip sets
+            // aim/look/left arm to 1). The aim weight is zeroed so the game's AimIK
+            // does not fight our hand targets for the arms.
+            if (m_hasRightArmIK)
+            {
+                // Disable() also disables the component and SetRightArmWeight does
+                // not re-enable it.
+                ik.m_rightArmIK.enabled = true;
+                ik.SetRightArmWeight(1f);
+            }
+            ik.SetLeftArmWeight(1f);
+            ik.SetAimWeight(0f);
+            // The head is driven directly (see ApplyHeadRotation): the look IK can't
+            // produce roll and, at weight 0, its fixTransforms would snap the head back
+            // to neutral. Disable the look IK component so it stops solving, and
+            // re-assert every frame — the game re-enables it in its Update phase
+            // (PlayerSyncIK.Enable).
+            if (ik.m_lookIK != null)
+            {
+                ik.m_lookIK.enabled = false;
+                ik.SetLookWeight(0f);
+            }
+
+            // Rotate the visual model to the sender's body facing (the received BodyYaw).
+            // PlayerSyncModel is a child of the agent root (visual-only) — the agent
+            // root, AI, character controller and origin are untouched. In GTFO the body
+            // faces the aim (≈ HMD yaw), so the head only "turns" by the whole model
+            // turning; with the model now equal to the sender's body frame, the
+            // body-frame pose values map directly onto its local transforms.
+            Agent.PlayerSyncModel.transform.rotation = p.BodyYaw;
+
+            // Slide the visual model LATERALLY from the (game-synced) character position
+            // by the sender's BodyPos (their physical offset from their character,
+            // roomscale within the teleport window). BodyPos is lateral-only and in the
+            // body frame, and the model's rotation is the body yaw (set above), so it
+            // maps directly onto it. The head/hand/item targets below are already
+            // expressed relative to this slid body (the sender subtracted BodyPos from
+            // them), so nothing else changes. The agent root / AI / controller stay put.
+            Vector3 modelTarget =
+                Agent.transform.position + Agent.PlayerSyncModel.transform.rotation * p.BodyPos;
+            // NOTE: no vertical nudge here — the vertical height is handled by the
+            // crouch-anim blend (ApplyVerticalHeight) + spine straighten (ApplyStandUp),
+            // not by shifting the model root (the grounder re-plants the feet, canceling
+            // a root shift).
+            if (!m_hasSmoothModelPos
+                || (modelTarget - m_smoothModelPos).sqrMagnitude > s_teleportSnapDist * s_teleportSnapDist)
+            {
+                m_smoothModelPos = modelTarget;
+                m_hasSmoothModelPos = true;
+            }
+            else
+            {
+                float t = 1f - Mathf.Exp(-Time.unscaledDeltaTime / s_modelPosSmoothTime);
+                m_smoothModelPos = Vector3.Lerp(m_smoothModelPos, modelTarget, t);
+            }
+            Agent.PlayerSyncModel.transform.position = m_smoothModelPos;
+
+            // Vertical height: crouch down via the game's own crouch-anim blend when the
+            // head is at/below the standing eye height; a taller head is raised by the
+            // spine straighten below (see ApplyVerticalHeight / ApplyStandUp).
+            ApplyVerticalHeight(p);
+
+            // Place (or release) the agent's own weapon FIRST: the arm targets below may
+            // anchor to this weapon's grips, so the weapon must already be posed.
+            PlaceOrReleaseWeapon(p);
+
+            // Arm targets default to the received (controller-based) hand poses. For a
+            // non-melee held item, anchor the gripping hand(s) to the agent's OWN item
+            // grips so the hand sits ON the item:
+            //   - Primary hand (the sender's main hand, already handedness-flipped on
+            //     their side) → the item's primary grip, for ANY non-melee item.
+            //   - Offhand → the supporting grip, but ONLY for a double-handing shootable
+            //     weapon (a carried pack stays at its controller pose, held one-handed).
+            //   - Melee weapons skip grip anchoring entirely (both hands keep their
+            //     controller poses): a hammer/spear/knife is grabbed at a different point
+            //     than its grip anchor, and archtype names can't be trusted to tell melee
+            //     kinds apart reliably. The item itself is still placed via HeldItemPos.
+            Vector3 rightPos = p.RightHandPos;
+            Quaternion rightRot = p.RightHandRot;
+            Vector3 leftPos = p.LeftHandPos;
+            Quaternion leftRot = p.LeftHandRot;
+
+            if (!p.IsMelee && p.HasHeldItem && m_botWeapon != null)
+            {
+                // Primary hand → the item's primary grip (no-op if the item has no
+                // grip → keeps the controller pose).
+                ApplyGripAnchoredHand(m_botWeapon.RightHandGripTrans, ref rightPos, ref rightRot);
+                // Offhand → the supporting grip, only for a double-handing weapon.
+                if (p.HasWeapon && p.IsDoubleHanding)
+                    ApplyGripAnchoredHand(m_botWeapon.LeftHandGripTrans, ref leftPos, ref leftRot);
+            }
+
+            // The hand-target transforms are children of the model root, so the received
+            // (model-local) positions map 1:1 onto them.
+            m_rightArmTarget.localPosition = rightPos;
+            m_rightArmTarget.localRotation = rightRot;
+            m_leftArmTarget.localPosition = leftPos;
+            m_leftArmTarget.localRotation = leftRot;
+
+            ik.SetRightArmTarget(m_rightArmTarget);
+            ik.SetLeftArmTarget(m_leftArmTarget);
+
+            // Tall-sender height: lean the spine back to raise the head to HeadPos.y.
+            // MUST run BEFORE the head drive: the head is a child of the spine chain, so
+            // the spine lean re-rotates the head on top of the head drive — if the lean
+            // came after, the head would end up tilted back instead of looking forward.
+            ApplyStandUp(p);
+
+            // Head: drive the model head bone's world rotation directly to the received
+            // head rotation (full yaw + pitch + roll). Runs LAST so it overrides the
+            // spine lean's effect on the head.
+            ApplyHeadRotation(p);
+        }
+
+        /// <summary>
+        /// Drive the model head bone's WORLD rotation directly to the received head
+        /// rotation (full yaw + pitch + roll), pivoting at the head bone's own origin
+        /// (the neck joint). This is what lets the head tilt forwards/backwards and
+        /// roll sideways — the game's LookAtIK only aligns the head's forward (a
+        /// shortest-arc), so it can yaw+pitch but never roll.
+        ///
+        /// The received HeadRot is BODY-RELATIVE (the sender's HMD rotation with the
+        /// body yaw removed). The model root carries exactly that body yaw (set in
+        /// ApplyPose), so driving the head bone's WORLD rotation with BodyYaw *
+        /// (BodyYawInv * hmdRot) = the sender's ACTUAL HMD world rotation: the head
+        /// turns/tilts/rolls exactly like the sender's head, relative to the shoulders.
+        /// A neutral-pose mismatch is absorbed by m_headRotOffset (visual calibration).
+        /// The look IK is disabled (in ApplyPose) so its fixTransforms / solve doesn't
+        /// snap the head back to neutral.
+        /// </summary>
+        private void ApplyHeadRotation(pVRPose p)
+        {
+            if (m_headBone == null)
+                return;
+
+            // p.HeadRot is local to the (body-yawed) model frame, but the head bone is
+            // driven in WORLD rotation: the model root's BodyYaw rotation (set in
+            // ApplyPose) does the body-frame → world mapping for us.
+            m_headBone.rotation = Agent.PlayerSyncModel.transform.rotation * p.HeadRot * m_headRotOffset;
+        }
+
+        /// <summary>
+        /// Match the model's vertical crouch depth to the sender's head height
+        /// (HeadPos.y): the game's OWN crouch-anim blend (Locomotion.SetCrouchTarget).
+        /// At blend b the model's eyes are at camPosDefault.y - b*(camPosDefault.y -
+        /// camPosCrouch.y), so b = (camPosDefault.y - HeadPos.y)/crouchDrop puts the
+        /// eyes on HeadPos.y. The crouch clip lowers the pelvis and bends the knees to
+        /// keep the feet planted, blending with the walk cycle (the same lever the game
+        /// uses: PLOC_Crouch.SyncEnter sets SetCrouchTarget(1)).
+        ///
+        /// This tracks the SENDER'S physical head height, not their in-game crouch state
+        /// (we write every frame after the game's own state-entry writes, so ours wins);
+        /// below the game's full crouch the blend clamps at 1 (the crouch clip's
+        /// physical limit). Above standing height the blend is 0 and ApplyStandUp takes
+        /// over.
+        /// </summary>
+        private void ApplyVerticalHeight(pVRPose p)
+        {
+            float headY = p.HeadPos.y;
+
+            m_crouchBlend = (headY <= m_camPosDefaultY && m_crouchHeadDrop > 0.001f)
+                ? Mathf.Clamp01((m_camPosDefaultY - headY) / m_crouchHeadDrop)
+                : 0f;
+
+            var agentLoco = Agent.Locomotion;
+            if (agentLoco != null)
+                agentLoco.SetCrouchTarget(m_crouchBlend);
+        }
+
+        /// <summary>
+        /// Raise the model's head to the sender's head height (HeadPos.y) by leaning the
+        /// SPINE back toward upright, using the standing/aiming clip's forward-lean
+        /// "slack." This is the tall-sender counterpart of the crouch blend.
+        ///
+        /// Mechanism: the head bone's WORLD position is set by the body chain
+        /// (Hips→Spine→Neck), not by the head rotation (which pivots at the neck). We
+        /// measure the head's current world Y, compute the deficit to HeadPos.y, and
+        /// lean the spine back by an angle proportional to the deficit
+        /// (s_standUpAnglePerMeter, capped at s_standUpMaxAngle), smoothed over
+        /// s_standUpSmoothTime. Rotating Spine about the body's local X axis pitches the
+        /// torso up, raising the head, while the FEET stay planted (Spine is a sibling
+        /// of the leg UpLegs under Hips) and the weapon / hand targets (children of the
+        /// model root) keep their natural size — no scale anywhere.
+        ///
+        /// Written in LateUpdate (after the Animator + IK phase), the same way the head
+        /// rotation is driven, so our lean wins for the frame.
+        /// </summary>
+        private void ApplyStandUp(pVRPose p)
+        {
+            if (m_spineBone == null || m_headBone == null)
+                return;
+
+            // Both sides must be in the SAME frame: HeadPos.y is the sender's head
+            // height ABOVE THE FEET (body frame). The model's head bone world Y is a
+            // world-space value (feet + head height, offset by the map's world Y), so
+            // subtract the model root's world Y (= the agent's feet; BodyPos.y is 0) to
+            // get the model's head height above its own feet before comparing.
+            float feetY = Agent.PlayerSyncModel.transform.position.y;
+            float modelHeadHeight = m_headBone.position.y - feetY;
+            float deficit = p.HeadPos.y - modelHeadHeight;
+
+            // Only straighten when the head is short of the target (taller sender). When
+            // the head is at/above the target, ease the lean back to the clip's natural
+            // pose.
+            float targetAngle = Mathf.Clamp(deficit * s_standUpAnglePerMeter, 0f, s_standUpMaxAngle);
+
+            float t = 1f - Mathf.Exp(-Time.unscaledDeltaTime / s_standUpSmoothTime);
+            m_standUpAngle = Mathf.Lerp(m_standUpAngle, targetAngle, t);
+
+            if (m_standUpAngle < 0.01f)
+            {
+                // No lean: leave the spine at the clip's pose (don't fight the Animator).
+                return;
+            }
+
+            // Straighten in the spine's OWN frame: premultiply its localRotation about
+            // local X (= in the pelvis frame). NOT the model root's world right — the
+            // clip's spine is bent forward AND twisted, so the model root's world right
+            // is not the spine's lateral axis, and a world-axis lean read as a
+            // left/backward lean. A pelvis-relative local X rotation cancels the forward
+            // lean in the spine's own frame regardless of the body's facing or the clip's
+            // twist. Negative angle pitches the spine's top from forward-lean toward
+            // vertical (raises the head).
+            m_spineBone.localRotation =
+                Quaternion.AngleAxis(-m_standUpAngle, Vector3.right) * m_spineBone.localRotation;
+        }
+
+        /// <summary>
+        /// Place the agent's own weapon at the sender's held-item pose in the model
+        /// (= body) frame, or release it back to its grip anchor when there is nothing
+        /// to mirror (the sender has no item, or this agent wields nothing).
+        ///
+        /// We reuse the agent's already-equipped item (Inventory.WieldedItem) rather
+        /// than spawning the sender's item — the remote poses its OWN weapon/gear at the
+        /// received pose (see pVRPose). The game sets the item's local transform once at
+        /// equip and does not re-assert it per frame, so driving it here sticks. We
+        /// re-parent it to the model root instead of leaving it under ItemAlign so the
+        /// agent's arm animation does not drag it back to the agent's own default grip —
+        /// the whole point is that our transmitted pose differs from the grip (melee
+        /// one-hand vs two-hand, left-handed, etc.). The AimIK holds the item by
+        /// transform reference and its weight is zeroed, so re-parenting causes no fight.
+        /// </summary>
+        private void PlaceOrReleaseWeapon(pVRPose p)
+        {
+            ItemEquippable agentWeapon = Agent.Inventory != null ? Agent.Inventory.WieldedItem : null;
+            if (agentWeapon == null || !p.HasHeldItem)
+            {
+                // Nothing to mirror: return the weapon to its normal grip hold.
+                ReleaseWeapon();
+                return;
+            }
+
+            Transform modelT = Agent.PlayerSyncModel.transform;
+            if (m_botWeapon != null && m_botWeapon != agentWeapon)
+            {
+                // The agent switched items: release the old one back to its grip anchor.
+                ReleaseWeapon();
+            }
+            if (m_botWeapon == null)
+            {
+                // First item (or the old one was just released): take over this one.
+                m_botWeapon = agentWeapon;
+                m_botWeaponOriginalParent = agentWeapon.transform.parent;
+                m_botWeaponOriginalLocalPos = agentWeapon.transform.localPosition;
+                m_botWeaponOriginalLocalRot = agentWeapon.transform.localRotation;
+                m_botWeapon.transform.SetParent(modelT, false);
+            }
+            else if (m_botWeapon.transform.parent != modelT)
+            {
+                // The game re-parented it (e.g. during its own equip transition);
+                // re-assert.
+                m_botWeapon.transform.SetParent(modelT, false);
+            }
+
+            // HeldItemPos is model-local (the sender expressed it relative to the slid
+            // body, whose frame the model root now is), so it maps 1:1 onto the model
+            // root's local space — the weapon keeps its natural size and sits at its
+            // real height above the feet.
+            m_botWeapon.transform.localPosition = p.HeldItemPos;
+            m_botWeapon.transform.localRotation = p.HeldItemRot;
+        }
+
+        /// <summary>
+        /// Anchor one hand's IK target to a weapon grip: set its position/rotation to
+        /// the grip's pose in the model (= body) frame. No (wrist→palm) offset — the
+        /// game builds each grip at the exact point the hand belongs, so the grip IS the
+        /// hand position. No-op (keeps the received controller pose) when the grip is
+        /// null (e.g. a one-handed weapon's offhand).
+        /// </summary>
+        private void ApplyGripAnchoredHand(Transform grip, ref Vector3 pos, ref Quaternion rot)
+        {
+            if (grip == null)
+                return;
+
+            Transform modelT = Agent.PlayerSyncModel.transform;
+            pos = modelT.InverseTransformPoint(grip.position);
+            rot = Quaternion.Inverse(modelT.rotation) * grip.rotation;
+        }
+
+        /// <summary>
+        /// Return the driven weapon to the game's grip anchor + local transform so the
+        /// agent holds it normally again. Safe no-op if nothing is currently driven.
+        /// </summary>
+        private void ReleaseWeapon()
+        {
+            if (m_botWeapon != null && m_botWeaponOriginalParent != null)
+            {
+                m_botWeapon.transform.SetParent(m_botWeaponOriginalParent, false);
+                m_botWeapon.transform.localPosition = m_botWeaponOriginalLocalPos;
+                m_botWeapon.transform.localRotation = m_botWeaponOriginalLocalRot;
+            }
+            m_botWeapon = null;
+            m_botWeaponOriginalParent = null;
+        }
+
+        private Transform CreateTargetTransform(string name)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(Agent.PlayerSyncModel.transform, false);
+            go.SetActive(true);
+            return go.transform;
+        }
+
+        /// <summary>
+        /// Stop driving this agent: restore its default IK state (re-enable the look IK
+        /// we disabled and clear our target weights) and return its weapon to the game's
+        /// grip anchor. The per-frame spine lean and crouch target stop being written,
+        /// and the Animator / the game's own state logic re-assert the natural pose on
+        /// the next Update. Safe to call more than once.
+        /// </summary>
+        public void Dispose()
+        {
+            if (m_ikConfigured && Agent)
+            {
+                if (Agent.SyncIK != null)
+                {
+                    if (Agent.SyncIK.m_lookIK != null)
+                        Agent.SyncIK.m_lookIK.enabled = true;
+                    Agent.SyncIK.ZeroAllTargetWeights();
+                }
+                m_standUpAngle = 0f;
+            }
+            ReleaseWeapon();
+            if (m_rightArmTarget) Object.Destroy(m_rightArmTarget.gameObject);
+            if (m_leftArmTarget) Object.Destroy(m_leftArmTarget.gameObject);
+            m_ikConfigured = false;
+        }
+    }
+}
