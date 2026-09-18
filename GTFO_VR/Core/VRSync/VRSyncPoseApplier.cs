@@ -107,6 +107,8 @@ namespace GTFO_VR.Core.VRSync
         private float m_rightError = -1f, m_leftError = -1f, m_headError = -1f;
         private string m_itemStatus;
         private long m_renderSamples;
+        private int m_lastRenderFinalizeFrame = -1;
+        private float m_preRenderRightError = -1f, m_preRenderLeftError = -1f;
         private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f, m_renderItemError = -1f;
 
         public bool Matches(PlayerAgent agent) => Agent == agent && m_model == agent.PlayerSyncModel && m_ik == agent.SyncIK;
@@ -415,6 +417,7 @@ namespace GTFO_VR.Core.VRSync
                 $"armSolves={m_rightSolves}/{m_leftSolves} armErrorM={m_rightError:F3}/{m_leftError:F3} " +
                 $"armWeights={m_ik.m_rightArmIK.solver.IKPositionWeight:F2}/{m_ik.m_leftArmIK.solver.IKPositionWeight:F2} " +
                 $"headErrorDeg={m_headError:F1} renderSamples={m_renderSamples} " +
+                $"preRenderArmErrorM={m_preRenderRightError:F3}/{m_preRenderLeftError:F3} " +
                 $"renderArmErrorM={m_renderRightError:F3}/{m_renderLeftError:F3} " +
                 $"renderHeadErrorDeg={m_renderHeadError:F1} renderItemErrorM={m_renderItemError:F3} " +
                 $"headY={LatestPose.HeadPos.y:F2} crouch={m_crouchBlend:F2} " +
@@ -424,12 +427,30 @@ namespace GTFO_VR.Core.VRSync
                 $"headRot={LatestPose.HeadRot} bodyYaw={LatestPose.BodyYaw} itemPose={LatestPose.HeldItemPos}/{LatestPose.HeldItemRot}";
         }
 
-        // Sample again at render time: low solver errors but high render errors mean
-        // a later animation/IK/mod write is undoing an otherwise successful solve.
-        public void ObserveBeforeRender()
+        // Full-body/grounding IK can move the shoulder chain after the individual arm
+        // solvers have already reached their targets. Both live-test logs showed the
+        // same result: armErrorM=0 immediately after the arm solve, then both hands were
+        // displaced by 0.105m before rendering while the weapon remained exact. Solve
+        // the arms once more from the final body pose so the hands finish on the grips.
+        public void FinalizeBeforeRender()
         {
             if (!m_ikConfigured || !m_ik || !m_model) return;
+            if (m_lastRenderFinalizeFrame == Time.frameCount) return;
+            m_lastRenderFinalizeFrame = Time.frameCount;
             m_renderSamples++;
+
+            m_preRenderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
+            m_preRenderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
+
+            // Calling the solvers directly avoids SolverManager.UpdateSolverExternal's
+            // skip-next-update flag. Targets and weights were asserted in ApplyPose.
+            m_ik.m_rightArmIK.solver.Update();
+            m_ik.m_leftArmIK.solver.Update();
+
+            // Arm solving can propagate small rotations through the upper-body chain;
+            // the HMD rotation remains authoritative for the head.
+            ApplyHeadRotation(m_smoothedPose);
+
             m_renderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
             m_renderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
             if (m_headBone)

@@ -266,12 +266,12 @@ namespace GTFO_VR.Core.VRSync
             }
         }
 
-        public static void ObserveBeforeRender()
+        public static void FinalizeBeforeRender()
         {
             foreach (var entry in Peers)
             {
-                try { entry.Value.Applier?.ObserveBeforeRender(); }
-                catch (Exception e) { Reject(entry.Key, $"render observation: {e}"); }
+                try { entry.Value.Applier?.FinalizeBeforeRender(); }
+                catch (Exception e) { Reject(entry.Key, $"render finalization: {e}"); }
             }
         }
 
