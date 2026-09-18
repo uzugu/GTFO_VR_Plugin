@@ -81,8 +81,17 @@ namespace GTFO_VR.Core.VRSync
         public static bool IsDoubleHanding => (Flags & 0x02) != 0;
         public static bool IsMelee => (Flags & 0x04) != 0;
 
-        /// <summary>True once at least one pose has been sampled.</summary>
+        /// <summary>True when the latest sample attempt produced a usable pose.</summary>
         public static bool HasPose;
+        public static float LastSampleTime;
+
+        public static void Reset()
+        {
+            HasPose = false;
+            HasHeldItem = false;
+            m_hasBodyYaw = false;
+            LastSampleTime = float.NegativeInfinity;
+        }
 
         private const float s_yawSmoothTime = 0.1f;
 
@@ -158,6 +167,9 @@ namespace GTFO_VR.Core.VRSync
 
         public static void Sample()
         {
+            HasPose = false;
+            if (FocusStateEvents.currentState != eFocusState.FPS || !VRConfig.configUseControllers.Value)
+                return;
             if (!HMD.Hmd || !Controllers.MainController || !Controllers.OffhandController)
                 return;
 
@@ -308,6 +320,7 @@ namespace GTFO_VR.Core.VRSync
             Flags = flags;
 
             HasPose = true;
+            LastSampleTime = Time.unscaledTime;
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 using GTFO_VR.Core;
 using Player;
+using RootMotion;
 using UnityEngine;
 
 namespace GTFO_VR.Core.VRSync
@@ -10,7 +11,7 @@ namespace GTFO_VR.Core.VRSync
     /// Per-agent port of the VRSyncLocalTest apply pipeline. The game re-asserts its
     /// own aim/look targets and IK weights every frame in the Update phase, and the
     /// RootMotion solvers solve in LateUpdate, so the pose is (re)applied every frame
-    /// from VRSyncNet.Tick() — called by VRSyncSolverLateUpdatePatch inside the first
+    /// from VRSyncNet.ApplyBeforeSolvers() — called by VRSyncSolverLateUpdatePatch inside the first
     /// solver's LateUpdate — after every Update-phase re-assert and before any solver
     /// solves, so our write wins for the frame.
     ///
@@ -91,6 +92,24 @@ namespace GTFO_VR.Core.VRSync
         private const float s_teleportSnapDist = 1.0f;
         private bool m_ikConfigured;
         private bool m_hasRightArmIK;
+        private PlayerSyncModelData m_model;
+        private PlayerSyncIK m_ik;
+        private Vector3 m_modelLocalPos;
+        private Quaternion m_modelLocalRot;
+        private Transform m_oldRightTarget, m_oldLeftTarget;
+        private bool m_oldRightEnabled, m_oldLookEnabled, m_oldAimEnabled;
+        private float m_oldAimWeight, m_oldLookWeight, m_oldLeftWeight;
+        private float m_oldRightPositionWeight, m_oldRightRotationWeight;
+        private Quaternion m_spineBefore, m_spineAfter, m_headBefore, m_headAfter;
+        private bool m_bonesApplied, m_hasSmoothedPose;
+        private pVRPose m_smoothedPose;
+        private long m_rightSolves, m_leftSolves;
+        private float m_rightError = -1f, m_leftError = -1f, m_headError = -1f;
+        private string m_itemStatus;
+        private long m_renderSamples;
+        private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f, m_renderItemError = -1f;
+
+        public bool Matches(PlayerAgent agent) => Agent == agent && m_model == agent.PlayerSyncModel && m_ik == agent.SyncIK;
 
         // The agent's own weapon, re-parented to the model root and driven to the
         // sender's held-item pose (see PlaceOrReleaseWeapon). We remember its original
@@ -114,8 +133,27 @@ namespace GTFO_VR.Core.VRSync
         /// </summary>
         public bool TryInitialize()
         {
-            if (Agent.PlayerSyncModel == null || Agent.SyncIK == null)
+            if (!Agent || Agent.PlayerSyncModel == null || Agent.SyncIK == null
+                || Agent.SyncIK.m_rightArmIK == null || Agent.SyncIK.m_leftArmIK == null
+                || Agent.SyncIK.m_rightArmSolver == null || Agent.SyncIK.m_leftArmSolver == null
+                || Agent.SyncIK.m_lookSolver == null || Agent.SyncIK.m_aimSolver == null)
                 return false;
+
+            m_model = Agent.PlayerSyncModel;
+            m_ik = Agent.SyncIK;
+            m_modelLocalPos = m_model.transform.localPosition;
+            m_modelLocalRot = m_model.transform.localRotation;
+            m_oldRightTarget = m_ik.m_rightArmIK.solver.target;
+            m_oldLeftTarget = m_ik.m_leftArmIK.solver.target;
+            m_oldRightEnabled = m_ik.m_rightArmIK.enabled;
+            m_oldRightPositionWeight = m_ik.m_rightArmIK.solver.IKPositionWeight;
+            m_oldRightRotationWeight = m_ik.m_rightArmIK.solver.IKRotationWeight;
+            m_oldLookEnabled = m_ik.m_lookIK != null && m_ik.m_lookIK.enabled;
+            m_oldAimEnabled = m_ik.m_aimIK != null && m_ik.m_aimIK.enabled;
+            m_oldAimWeight = m_ik.m_aimWeightTarget;
+            m_oldLookWeight = m_ik.m_lookWeightTarget;
+            m_oldLeftWeight = m_ik.m_leftArmWeightTarget;
+            m_ikConfigured = true; // allow cleanup of partially initialized targets
 
             // Invisible IK target transforms, parented to the agent's sync model.
             // World-space position + rotation are set on them every frame.
@@ -142,7 +180,7 @@ namespace GTFO_VR.Core.VRSync
             // Head rotation (see ApplyHeadRotation): capture the exact bone the look IK
             // rotates (solver.head), falling back to the humanoid head bone.
             var lookIK = Agent.SyncIK.m_lookIK;
-            m_headBone = (lookIK != null && lookIK.solver != null)
+            m_headBone = (lookIK != null && lookIK.solver != null && lookIK.solver.head != null)
                 ? lookIK.solver.head.transform
                 : null;
             if (m_headBone == null && Agent.AnimatorBody != null
@@ -183,7 +221,7 @@ namespace GTFO_VR.Core.VRSync
             if (!Agent || !Agent.PlayerSyncModel || !Agent.SyncIK)
                 return;
 
-            pVRPose p = LatestPose;
+            pVRPose p = SmoothPose(LatestPose);
             var ik = Agent.SyncIK;
 
             // The game can call Disable() from its own state logic, which sets
@@ -205,7 +243,10 @@ namespace GTFO_VR.Core.VRSync
                 ik.SetRightArmWeight(1f);
             }
             ik.SetLeftArmWeight(1f);
+            ik.m_leftArmIK.solver.SetIKPositionWeight(1f);
+            ik.m_leftArmIK.solver.SetIKRotationWeight(1f);
             ik.SetAimWeight(0f);
+            if (ik.m_aimIK != null) ik.m_aimIK.solver.SetIKPositionWeight(0f);
             // The head is driven directly (see ApplyHeadRotation): the look IK can't
             // produce roll and, at weight 0, its fixTransforms would snap the head back
             // to neutral. Disable the look IK component so it stops solving, and
@@ -288,10 +329,10 @@ namespace GTFO_VR.Core.VRSync
 
             // The hand-target transforms are children of the model root, so the received
             // (model-local) positions map 1:1 onto them.
-            m_rightArmTarget.localPosition = rightPos;
-            m_rightArmTarget.localRotation = rightRot;
-            m_leftArmTarget.localPosition = leftPos;
-            m_leftArmTarget.localRotation = leftRot;
+            m_rightArmTarget.localPosition = p.LeftHanded ? leftPos : rightPos;
+            m_rightArmTarget.localRotation = p.LeftHanded ? leftRot : rightRot;
+            m_leftArmTarget.localPosition = p.LeftHanded ? rightPos : leftPos;
+            m_leftArmTarget.localRotation = p.LeftHanded ? rightRot : leftRot;
 
             ik.SetRightArmTarget(m_rightArmTarget);
             ik.SetLeftArmTarget(m_leftArmTarget);
@@ -300,12 +341,101 @@ namespace GTFO_VR.Core.VRSync
             // MUST run BEFORE the head drive: the head is a child of the spine chain, so
             // the spine lean re-rotates the head on top of the head drive — if the lean
             // came after, the head would end up tilted back instead of looking forward.
+            if (m_spineBone) m_spineBefore = m_spineBone.localRotation;
+            if (m_headBone) m_headBefore = m_headBone.localRotation;
             ApplyStandUp(p);
 
             // Head: drive the model head bone's world rotation directly to the received
             // head rotation (full yaw + pitch + roll). Runs LAST so it overrides the
             // spine lean's effect on the head.
             ApplyHeadRotation(p);
+            if (m_spineBone) m_spineAfter = m_spineBone.localRotation;
+            if (m_headBone) m_headAfter = m_headBone.localRotation;
+            m_bonesApplied = true;
+        }
+
+        private pVRPose SmoothPose(pVRPose next)
+        {
+            if (!m_hasSmoothedPose || next.Flags != m_smoothedPose.Flags
+                || next.HeldItemSlot != m_smoothedPose.HeldItemSlot)
+            {
+                m_hasSmoothedPose = true;
+                return m_smoothedPose = next;
+            }
+            float t = 1f - Mathf.Exp(-Time.unscaledDeltaTime / 0.035f);
+            var old = m_smoothedPose;
+            next.BodyPos = Vector3.Lerp(old.BodyPos, next.BodyPos, t);
+            next.HeadPos = Vector3.Lerp(old.HeadPos, next.HeadPos, t);
+            next.RightHandPos = Vector3.Lerp(old.RightHandPos, next.RightHandPos, t);
+            next.LeftHandPos = Vector3.Lerp(old.LeftHandPos, next.LeftHandPos, t);
+            next.HeldItemPos = Vector3.Lerp(old.HeldItemPos, next.HeldItemPos, t);
+            next.BodyYaw = Quaternion.Slerp(old.BodyYaw, next.BodyYaw, t);
+            next.HeadRot = Quaternion.Slerp(old.HeadRot, next.HeadRot, t);
+            next.RightHandRot = Quaternion.Slerp(old.RightHandRot, next.RightHandRot, t);
+            next.LeftHandRot = Quaternion.Slerp(old.LeftHandRot, next.LeftHandRot, t);
+            next.HeldItemRot = Quaternion.Slerp(old.HeldItemRot, next.HeldItemRot, t);
+            return m_smoothedPose = next;
+        }
+
+        // Remove our additive bone edits if the Animator has not replaced them (e.g.
+        // animation culling). Otherwise spine correction would accumulate offscreen.
+        public void RestoreFrame()
+        {
+            if (!m_bonesApplied) return;
+            if (m_spineBone && Quaternion.Angle(m_spineBone.localRotation, m_spineAfter) < 0.01f)
+                m_spineBone.localRotation = m_spineBefore;
+            if (m_headBone && Quaternion.Angle(m_headBone.localRotation, m_headAfter) < 0.01f)
+                m_headBone.localRotation = m_headBefore;
+            m_bonesApplied = false;
+        }
+
+        public void ObserveSolver(SolverManager solver)
+        {
+            if (!m_ik || !m_ikConfigured) return;
+            if (solver == m_ik.m_rightArmIK)
+            {
+                m_rightSolves++;
+                m_rightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
+            }
+            else if (solver == m_ik.m_leftArmIK)
+            {
+                m_leftSolves++;
+                m_leftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
+            }
+            else return;
+            if (m_headBone)
+                m_headError = Quaternion.Angle(m_headBone.rotation, m_model.transform.rotation * m_smoothedPose.HeadRot);
+        }
+
+        public string Diagnostics()
+        {
+            if (!Agent || !m_model || !m_ik) return "rig=destroyed";
+            return $"agent={Agent.GetInstanceID()} state={Agent.Locomotion.m_currentStateEnum} " +
+                $"item={m_itemStatus} flags={LatestPose.Flags} " +
+                $"armSolves={m_rightSolves}/{m_leftSolves} armErrorM={m_rightError:F3}/{m_leftError:F3} " +
+                $"armWeights={m_ik.m_rightArmIK.solver.IKPositionWeight:F2}/{m_ik.m_leftArmIK.solver.IKPositionWeight:F2} " +
+                $"headErrorDeg={m_headError:F1} renderSamples={m_renderSamples} " +
+                $"renderArmErrorM={m_renderRightError:F3}/{m_renderLeftError:F3} " +
+                $"renderHeadErrorDeg={m_renderHeadError:F1} renderItemErrorM={m_renderItemError:F3} " +
+                $"headY={LatestPose.HeadPos.y:F2} crouch={m_crouchBlend:F2} " +
+                $"spine={m_standUpAngle:F1} body={LatestPose.BodyPos} model={m_model.transform.position} " +
+                $"root={Agent.transform.position} headBone={(m_headBone ? m_headBone.position.ToString() : "missing")} " +
+                $"primary={LatestPose.RightHandPos}/{LatestPose.RightHandRot} offhand={LatestPose.LeftHandPos}/{LatestPose.LeftHandRot} " +
+                $"headRot={LatestPose.HeadRot} bodyYaw={LatestPose.BodyYaw} itemPose={LatestPose.HeldItemPos}/{LatestPose.HeldItemRot}";
+        }
+
+        // Sample again at render time: low solver errors but high render errors mean
+        // a later animation/IK/mod write is undoing an otherwise successful solve.
+        public void ObserveBeforeRender()
+        {
+            if (!m_ikConfigured || !m_ik || !m_model) return;
+            m_renderSamples++;
+            m_renderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
+            m_renderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
+            if (m_headBone)
+                m_renderHeadError = Quaternion.Angle(m_headBone.rotation, m_smoothedPose.BodyYaw * m_smoothedPose.HeadRot);
+            m_renderItemError = m_botWeapon
+                ? Vector3.Distance(m_botWeapon.transform.position, m_model.transform.TransformPoint(m_smoothedPose.HeldItemPos)) : -1f;
         }
 
         /// <summary>
@@ -439,7 +569,14 @@ namespace GTFO_VR.Core.VRSync
         private void PlaceOrReleaseWeapon(pVRPose p)
         {
             ItemEquippable agentWeapon = Agent.Inventory != null ? Agent.Inventory.WieldedItem : null;
-            if (agentWeapon == null || !p.HasHeldItem)
+            string itemStatus = agentWeapon == null ? "none" :
+                $"{agentWeapon.PublicName}/slot={Agent.Inventory.WieldedSlot}/wire={p.HeldItemSlot}";
+            if (m_itemStatus != itemStatus)
+            {
+                m_itemStatus = itemStatus;
+                Log.Info($"VRSyncNet: peer={SenderID} item={itemStatus}");
+            }
+            if (agentWeapon == null || !p.HasHeldItem || (int)Agent.Inventory.WieldedSlot != p.HeldItemSlot)
             {
                 // Nothing to mirror: return the weapon to its normal grip hold.
                 ReleaseWeapon();
@@ -499,7 +636,10 @@ namespace GTFO_VR.Core.VRSync
         /// </summary>
         private void ReleaseWeapon()
         {
-            if (m_botWeapon != null && m_botWeaponOriginalParent != null)
+            // A remote equip/drop may already have put this item on the backpack or
+            // into the world. Only undo parenting that we still own.
+            if (m_botWeapon != null && m_botWeaponOriginalParent != null && m_model
+                && m_botWeapon.transform.parent == m_model.transform)
             {
                 m_botWeapon.transform.SetParent(m_botWeaponOriginalParent, false);
                 m_botWeapon.transform.localPosition = m_botWeaponOriginalLocalPos;
@@ -524,22 +664,61 @@ namespace GTFO_VR.Core.VRSync
         /// and the Animator / the game's own state logic re-assert the natural pose on
         /// the next Update. Safe to call more than once.
         /// </summary>
-        public void Dispose()
+        private void RestoreRig()
         {
-            if (m_ikConfigured && Agent)
+            RestoreFrame();
+            ReleaseWeapon();
+            if (m_ikConfigured && m_ik)
             {
-                if (Agent.SyncIK != null)
+                if (m_ik.m_rightArmIK != null)
                 {
-                    if (Agent.SyncIK.m_lookIK != null)
-                        Agent.SyncIK.m_lookIK.enabled = true;
-                    Agent.SyncIK.ZeroAllTargetWeights();
+                    m_ik.SetRightArmTarget(m_oldRightTarget);
+                    m_ik.m_rightArmIK.solver.SetIKPositionWeight(m_oldRightPositionWeight);
+                    m_ik.m_rightArmIK.solver.SetIKRotationWeight(m_oldRightRotationWeight);
+                    m_ik.m_rightArmIK.enabled = m_oldRightEnabled;
+                }
+                if (m_ik.m_leftArmIK != null)
+                    m_ik.SetLeftArmTarget(Agent && Agent.Inventory != null && Agent.Inventory.WieldedItem != null
+                        ? Agent.Inventory.WieldedItem.LeftHandGripTrans : m_oldLeftTarget);
+                if (VRSyncNet.CanDrive(Agent))
+                {
+                    if (m_ik.m_aimIK != null)
+                    {
+                        m_ik.m_aimIK.enabled = m_oldAimEnabled;
+                        m_ik.SetAimWeight(m_oldAimWeight);
+                    }
+                    if (m_ik.m_lookIK != null)
+                    {
+                        m_ik.m_lookIK.enabled = m_oldLookEnabled;
+                        m_ik.SetLookWeight(m_oldLookWeight);
+                    }
+                    m_ik.SetLeftArmWeight(m_oldLeftWeight);
+                    // Equipment can have changed since takeover. Let the current
+                    // item restore its own aim/look/support-hand weights.
+                    if (Agent.Inventory != null)
+                        Agent.Inventory.SetEquippedItemSyncIKEnabled(Agent);
+                }
+                if (Agent && Agent.Locomotion != null)
+                    Agent.Locomotion.SetCrouchTarget(Agent.Locomotion.m_currentStateEnum == PlayerLocomotion.PLOC_State.Crouch ? 1f : 0f);
+                if (m_model)
+                {
+                    m_model.transform.localPosition = m_modelLocalPos;
+                    m_model.transform.localRotation = m_modelLocalRot;
                 }
                 m_standUpAngle = 0f;
             }
-            ReleaseWeapon();
-            if (m_rightArmTarget) Object.Destroy(m_rightArmTarget.gameObject);
-            if (m_leftArmTarget) Object.Destroy(m_leftArmTarget.gameObject);
-            m_ikConfigured = false;
+        }
+
+        public void Dispose()
+        {
+            try { RestoreRig(); }
+            finally
+            {
+                if (m_rightArmTarget) Object.Destroy(m_rightArmTarget.gameObject);
+                if (m_leftArmTarget) Object.Destroy(m_leftArmTarget.gameObject);
+                m_rightArmTarget = m_leftArmTarget = null;
+                m_ikConfigured = false;
+            }
         }
     }
 }

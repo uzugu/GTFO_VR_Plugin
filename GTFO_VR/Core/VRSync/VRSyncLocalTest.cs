@@ -316,10 +316,12 @@ namespace GTFO_VR.Core.VRSync
 
         private void SetupTargetBot()
         {
-            // Find the first non-local PlayerAgent (a bot or remote player)
+            // Never let the prototype take control of a human player's inventory.
             var allAgents = FindObjectsOfType<PlayerAgent>();
             foreach (var agent in allAgents)
             {
+                if (agent.Owner == null || !agent.Owner.IsBot)
+                    continue;
                 if (agent == VRPlayer.PlayerAgent)
                     continue;
                 if (agent.IsLocallyOwned)

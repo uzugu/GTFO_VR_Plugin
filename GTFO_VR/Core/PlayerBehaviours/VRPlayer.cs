@@ -80,7 +80,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
             BodyHapticsIntegrator bodyHapticsIntegrator = gameObject.AddComponent<BodyHapticsIntegrator>();
             bodyHapticsIntegrator.Setup(agent);
 
-            gameObject.AddComponent<VRSyncLocalTest>();
+            VRSyncData.Reset();
+            if (VRConfig.configVRSyncLocalTest.Value)
+                gameObject.AddComponent<VRSyncLocalTest>();
 
             PlayerLocomotionEvents.OnPlayerEnterLadder += PlayerEnteredLadder;
             SteamVR_Events.NewPosesApplied.Listen(new Action(OnNewPoses));
@@ -222,6 +224,8 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void OnDestroy()
         {
+            VRSyncData.Reset();
+            VRSyncNet.Reset("local player destroyed");
             PlayerLocomotionEvents.OnPlayerEnterLadder -= PlayerEnteredLadder;
             SteamVR_Events.NewPosesApplied.Remove(OnNewPoses);
 

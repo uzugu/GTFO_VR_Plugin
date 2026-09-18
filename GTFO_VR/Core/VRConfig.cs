@@ -57,6 +57,7 @@ namespace GTFO_VR.Core
         internal static ConfigEntry<bool> configProtube;
 
         internal static ConfigEntry<bool> configVRSyncP2P;
+        internal static ConfigEntry<bool> configVRSyncLocalTest;
         internal static ConfigEntry<float> configVRSyncPoseRate;
         internal static ConfigEntry<float> configVRSyncBeaconCadence;
 
@@ -136,8 +137,10 @@ namespace GTFO_VR.Core
             configUseOldHammer = BindBool(file, "Misc", "Use old melee weapon swing?", false, "If true, will use the in-game system for melee that uses animations and moves by itself.", "(OLD) Auto-swing melee");
 
             BindHeader("VR Sync");
+            configVRSyncLocalTest = BindBool(file, "VR Sync", "Mirror VR pose onto a local bot (test only)?", false,
+                "Local prototype only. Requires a player respawn to change. Never targets human players.", "Bot pose test (restart required)");
             configVRSyncP2P = BindBool(file, "VR Sync", "Sync your VR pose with other players?", true,
-                "If true, your VR upper-body pose (body, head, arms, held item) is sent to other players with the VR mod, and their VR pose is applied to how they look to you. Players without the VR mod are unaffected and won't notice this.",
+                "Shares upper-body poses with compatible VR peers. Unmodded peers receive only discovery beacons, which may produce an unknown-packet entry in their game log.",
                 "VR pose sync (P2P)");
             configVRSyncPoseRate = BindFloat(file, "VR Sync", "VR pose send rate (Hz)", 20f, 5f, 60f,
                 "How often your VR pose is sent to VR-modded players", "Pose rate (Hz)");

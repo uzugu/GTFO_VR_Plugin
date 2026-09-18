@@ -59,6 +59,9 @@ namespace GTFO_VR.Core
 
             Harmony harmony = new Harmony("com.github.dsprtn.gtfovr");
             harmony.PatchAll();
+            Core.Log.Info($"VRSyncNet: hooks receive={Harmony.GetPatchInfo(AccessTools.Method(typeof(SNetwork.SNet_Replication), "RecieveBytes"))?.Owners.Contains(harmony.Id)} " +
+                $"solver={Harmony.GetPatchInfo(AccessTools.Method(typeof(RootMotion.SolverManager), "LateUpdate"))?.Owners.Contains(harmony.Id)} " +
+                $"build={typeof(VRSyncNet).Assembly.ManifestModule.ModuleVersionId}");
         }
 
         private void SetupIL2CPPClassInjections()

@@ -6,8 +6,8 @@ namespace GTFO_VR.Injections.GameHooks
 {
     /// <summary>
     /// Authoritative application point for the VRSync poses: the local test's pose and
-    /// the P2P network poses (VRSyncNet.Tick — apply received remote poses + throttled
-    /// beacon/pose sends).
+    /// the P2P network poses. Network sends and cleanup run independently in
+    /// VRSystems.Update; this hook only applies poses and observes solver results.
     ///
     /// RootMotion solvers solve in SolverManager.LateUpdate. A prefix on the first
     /// solver's LateUpdate runs after every agent's Update-phase target/weight re-assert
@@ -27,7 +27,12 @@ namespace GTFO_VR.Injections.GameHooks
         {
             FiredCount++;
             VRSyncLocalTest.ApplyPoseBeforeSolvers();
-            VRSyncNet.Tick();
+            VRSyncNet.ApplyBeforeSolvers();
+        }
+
+        private static void Postfix(SolverManager __instance)
+        {
+            VRSyncNet.ObserveSolver(__instance);
         }
     }
 }

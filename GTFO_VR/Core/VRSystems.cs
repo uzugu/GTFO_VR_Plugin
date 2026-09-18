@@ -54,15 +54,21 @@ namespace GTFO_VR.Core
         }
 
 
-#if DEBUG_GTFO_VR
         void Update()
         {
+            VRSync.VRSyncNet.Update();
+#if DEBUG_GTFO_VR
             if (Input.GetKeyDown(KeyCode.F11))
             {
                 WeaponArchetypeVRData.LoadHapticsData();
             }
-        }
 #endif
+        }
+
+        private void LateUpdate()
+        {
+            VRSync.VRSyncNet.ApplyBeforeSolvers();
+        }
         /// <summary>
         /// Some events like the checkpoint respawn are hard to handle in events. That's why we make do with this hack.
         /// </summary>
@@ -253,6 +259,7 @@ namespace GTFO_VR.Core
 
         private void OnDestroy()
         {
+            VRSync.VRSyncNet.Reset("VR systems destroyed");
             VRConfig.configRenderResolutionMultiplier.SettingChanged -= VRResolutionChanged;
             FocusStateEvents.OnFocusStateChange -= FocusChanged;
             BodyHapticsIntegrator.Destroy();
