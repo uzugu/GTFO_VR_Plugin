@@ -77,6 +77,9 @@ namespace GTFO_VR.Core.VRSync
         // bit1: double-handing (shootable weapon gripped with both hands)
         // bit2: is melee (the held item is a melee weapon; the receiver skips grip
         //        anchoring entirely for these)
+        // bit5: the sender's item holder is playing a hand/item animation (reload,
+        //        equip, holster, etc.); receivers temporarily return the arms/item to
+        //        the game's animation system
         public static byte Flags;
         public static bool HasWeapon => (Flags & 0x01) != 0;
         public static bool IsDoubleHanding => (Flags & 0x02) != 0;
@@ -303,6 +306,8 @@ namespace GTFO_VR.Core.VRSync
             //                         distinguish melee kinds reliably against mods. Guns,
             //                         tools and carried gear/packs are all non-melee here.
             byte flags = 0;
+            if (agent.FPItemHolder != null && agent.FPItemHolder.ItemIsBusy)
+                flags |= 0x20; // handsAnimating
             if (ItemEquippableEvents.IsCurrentItemShootableWeapon())
             {
                 flags |= 0x01; // hasWeapon

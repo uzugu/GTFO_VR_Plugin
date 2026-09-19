@@ -120,6 +120,8 @@ namespace GTFO_VR.Core.VRSync
         private float m_preRenderRightError = -1f, m_preRenderLeftError = -1f;
         private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f, m_renderItemError = -1f;
         private readonly string m_logContext;
+        private bool m_wasGameHandAnimation;
+        private string m_handAnimationReason = "none";
 
         public bool Matches(PlayerAgent agent) => Agent == agent && m_model == agent.PlayerSyncModel && m_ik == agent.SyncIK;
 
@@ -131,6 +133,12 @@ namespace GTFO_VR.Core.VRSync
         private Transform m_botWeaponOriginalParent;
         private Vector3 m_botWeaponOriginalLocalPos;
         private Quaternion m_botWeaponOriginalLocalRot;
+        private Vector3 m_botWeaponOriginalLocalScale;
+        private ItemEquippable m_animatedWeapon;
+        private Transform m_animatedWeaponParent;
+        private Vector3 m_animatedWeaponLocalPos;
+        private Quaternion m_animatedWeaponLocalRot;
+        private Vector3 m_animatedWeaponLocalScale;
 
         public VRSyncPoseApplier(PlayerAgent agent, ulong senderID,
             float modelPositionSmoothTime = 0.03f, string logContext = null)
@@ -259,29 +267,41 @@ namespace GTFO_VR.Core.VRSync
             pVRPose p = SmoothPose(LatestPose);
             var ik = Agent.SyncIK;
 
+            bool gameHandAnimation = IsGameHandAnimation(p, out string animationReason);
+            UpdateHandAnimationState(gameHandAnimation, animationReason);
+
             // The game can call Disable() from its own state logic, which sets
             // m_enabled = false (UpdateIK then early-returns and the weight blend
             // stays at 0) and disables every IK component. Re-enable the update loop
             // so the weights below actually take effect.
-            if (!ik.IsEnabled())
+            if (!gameHandAnimation && !ik.IsEnabled())
                 ik.SoftEnable();
 
             // Re-assert weights every frame: the game re-asserts its own on every state
             // entry (PLOC_Stand zeroes the right arm weight, weapon equip sets
             // aim/look/left arm to 1). The aim weight is zeroed so the game's AimIK
             // does not fight our hand targets for the arms.
-            if (m_hasRightArmIK)
+            if (!gameHandAnimation && m_hasRightArmIK)
             {
                 // Disable() also disables the component and SetRightArmWeight does
                 // not re-enable it.
                 ik.m_rightArmIK.enabled = true;
                 ik.SetRightArmWeight(1f);
             }
-            ik.SetLeftArmWeight(1f);
-            ik.m_leftArmIK.solver.SetIKPositionWeight(1f);
-            ik.m_leftArmIK.solver.SetIKRotationWeight(1f);
+            if (!gameHandAnimation)
+            {
+                ik.SetLeftArmWeight(1f);
+                ik.m_leftArmIK.solver.SetIKPositionWeight(1f);
+                ik.m_leftArmIK.solver.SetIKRotationWeight(1f);
+            }
+
+            // AimIK rotates the torso toward a world-space aim target. That target is
+            // not in the roomscale-shifted model frame and can fold the body toward a
+            // transitioning item. The Animator owns reload/equip motion; weapon IK stays
+            // off both during tracking and during the animation handoff.
             ik.SetAimWeight(0f);
-            if (ik.m_aimIK != null) ik.m_aimIK.solver.SetIKPositionWeight(0f);
+            if (ik.m_aimIK != null)
+                ik.m_aimIK.solver.SetIKPositionWeight(0f);
             // The head is driven directly (see ApplyHeadRotation): the look IK can't
             // produce roll and, at weight 0, its fixTransforms would snap the head back
             // to neutral. Disable the look IK component so it stops solving, and
@@ -334,7 +354,10 @@ namespace GTFO_VR.Core.VRSync
 
             // Place (or release) the agent's own weapon FIRST: the arm targets below may
             // anchor to this weapon's grips, so the weapon must already be posed.
-            PlaceOrReleaseWeapon(p);
+            if (gameHandAnimation)
+                MaintainAnimatedWeaponAttachment();
+            else
+                PlaceOrReleaseWeapon(p);
 
             // Arm targets default to the received (controller-based) hand poses. For a
             // non-melee held item, anchor the gripping hand(s) to the agent's OWN item
@@ -347,32 +370,35 @@ namespace GTFO_VR.Core.VRSync
             //     controller poses): a hammer/spear/knife is grabbed at a different point
             //     than its grip anchor, and archtype names can't be trusted to tell melee
             //     kinds apart reliably. The item itself is still placed via HeldItemPos.
-            Vector3 rightPos = p.RightHandPos;
-            Quaternion rightRot = p.RightHandRot;
-            Vector3 leftPos = p.LeftHandPos;
-            Quaternion leftRot = p.LeftHandRot;
-
-            if (!p.IsMelee && p.HasHeldItem && m_botWeapon != null)
+            if (!gameHandAnimation)
             {
-                // Primary hand → the item's primary grip (no-op if the item has no
-                // grip → keeps the controller pose).
-                ApplyGripAnchoredHand(m_botWeapon.RightHandGripTrans, ref rightPos, ref rightRot,
-                    mirrorForOppositeHand: p.LeftHanded);
-                // Offhand → the supporting grip, only for a double-handing weapon.
-                if (p.HasWeapon && p.IsDoubleHanding)
-                    ApplyGripAnchoredHand(m_botWeapon.LeftHandGripTrans, ref leftPos, ref leftRot,
+                Vector3 rightPos = p.RightHandPos;
+                Quaternion rightRot = p.RightHandRot;
+                Vector3 leftPos = p.LeftHandPos;
+                Quaternion leftRot = p.LeftHandRot;
+
+                if (!p.IsMelee && p.HasHeldItem && m_botWeapon != null)
+                {
+                    // Primary hand → the item's primary grip (no-op if the item has no
+                    // grip → keeps the controller pose).
+                    ApplyGripAnchoredHand(m_botWeapon.RightHandGripTrans, ref rightPos, ref rightRot,
                         mirrorForOppositeHand: p.LeftHanded);
+                    // Offhand → the supporting grip, only for a double-handing weapon.
+                    if (p.HasWeapon && p.IsDoubleHanding)
+                        ApplyGripAnchoredHand(m_botWeapon.LeftHandGripTrans, ref leftPos, ref leftRot,
+                            mirrorForOppositeHand: p.LeftHanded);
+                }
+
+                // The hand-target transforms are children of the model root, so the received
+                // (model-local) positions map 1:1 onto them.
+                m_rightArmTarget.localPosition = p.LeftHanded ? leftPos : rightPos;
+                m_rightArmTarget.localRotation = p.LeftHanded ? leftRot : rightRot;
+                m_leftArmTarget.localPosition = p.LeftHanded ? rightPos : leftPos;
+                m_leftArmTarget.localRotation = p.LeftHanded ? rightRot : leftRot;
+
+                ik.SetRightArmTarget(m_rightArmTarget);
+                ik.SetLeftArmTarget(m_leftArmTarget);
             }
-
-            // The hand-target transforms are children of the model root, so the received
-            // (model-local) positions map 1:1 onto them.
-            m_rightArmTarget.localPosition = p.LeftHanded ? leftPos : rightPos;
-            m_rightArmTarget.localRotation = p.LeftHanded ? leftRot : rightRot;
-            m_leftArmTarget.localPosition = p.LeftHanded ? rightPos : leftPos;
-            m_leftArmTarget.localRotation = p.LeftHanded ? rightRot : leftRot;
-
-            ik.SetRightArmTarget(m_rightArmTarget);
-            ik.SetLeftArmTarget(m_leftArmTarget);
 
             // Tall-sender height: lean the spine back to raise the head to HeadPos.y.
             // MUST run BEFORE the head drive: the head is a child of the spine chain, so
@@ -389,6 +415,82 @@ namespace GTFO_VR.Core.VRSync
             if (m_spineBone) m_spineAfter = m_spineBone.localRotation;
             if (m_headBone) m_headAfter = m_headBone.localRotation;
             m_bonesApplied = true;
+        }
+
+        private bool IsGameHandAnimation(pVRPose p, out string reason)
+        {
+            if (p.HandsAnimating)
+            {
+                reason = "sender-busy";
+                return true;
+            }
+
+            PlayerInventorySynced syncedInventory = Agent.Inventory as PlayerInventorySynced;
+            if (syncedInventory != null && syncedInventory.IsEquiping)
+            {
+                reason = "receiver-equip";
+                return true;
+            }
+
+            ItemEquippable item = Agent.Inventory != null ? Agent.Inventory.WieldedItem : null;
+            if (item != null && item.IsReloading)
+            {
+                reason = "receiver-reload";
+                return true;
+            }
+
+            // WieldedItem may expose a queued item before the inventory has actually
+            // equipped it. This is especially visible with bots, whose inventory type
+            // is not necessarily PlayerInventorySynced. Keep game ownership until the
+            // requested item reaches the model's shared ItemAlign attachment.
+            if (p.HasHeldItem && item != null && item != m_botWeapon && m_model != null
+                && m_model.ItemAlign != null && item.transform.parent != m_model.ItemAlign)
+            {
+                reason = "receiver-item-pending";
+                return true;
+            }
+
+            reason = "none";
+            return false;
+        }
+
+        private void UpdateHandAnimationState(bool gameHandAnimation, string reason)
+        {
+            if (gameHandAnimation && !m_wasGameHandAnimation)
+            {
+                ReleaseWeapon(true);
+                ReleaseHandsToGame();
+                Log.Info($"{m_logContext} handoff=game reason={reason}");
+            }
+            else if (!gameHandAnimation && m_wasGameHandAnimation)
+            {
+                ClearAnimatedWeapon();
+                Log.Info($"{m_logContext} handoff=vr reason={m_handAnimationReason}");
+            }
+
+            m_handAnimationReason = gameHandAnimation ? reason : "none";
+            m_wasGameHandAnimation = gameHandAnimation;
+        }
+
+        private void ReleaseHandsToGame()
+        {
+            if (!m_ik)
+                return;
+
+            m_ik.SetRightArmTarget(m_oldRightTarget);
+            m_ik.m_rightArmIK.solver.SetIKPositionWeight(0f);
+            m_ik.m_rightArmIK.solver.SetIKRotationWeight(0f);
+            // WieldedItem exposes the queued item during a switch, while the animation
+            // is still handling the outgoing item. Never point the arm at a grip that
+            // is still attached to the backpack.
+            m_ik.SetLeftArmTarget(m_animatedWeapon != null
+                ? m_animatedWeapon.LeftHandGripTrans : m_oldLeftTarget);
+            m_ik.SetLeftArmWeight(0f);
+            m_ik.m_leftArmIK.solver.SetIKPositionWeight(0f);
+            m_ik.m_leftArmIK.solver.SetIKRotationWeight(0f);
+            m_ik.SetAimWeight(0f);
+            if (m_ik.m_aimIK != null)
+                m_ik.m_aimIK.solver.SetIKPositionWeight(0f);
         }
 
         private pVRPose SmoothPose(pVRPose next)
@@ -429,6 +531,13 @@ namespace GTFO_VR.Core.VRSync
         public void ObserveSolver(SolverManager solver)
         {
             if (!m_ik || !m_ikConfigured) return;
+            if (m_wasGameHandAnimation)
+            {
+                if (m_headBone)
+                    m_headError = Quaternion.Angle(m_headBone.rotation,
+                        m_model.transform.rotation * m_smoothedPose.HeadRot);
+                return;
+            }
             if (solver == m_ik.m_rightArmIK)
             {
                 m_rightSolves++;
@@ -466,8 +575,11 @@ namespace GTFO_VR.Core.VRSync
             if (!Agent || !m_model || !m_ik) return "rig=destroyed";
             return $"agent={Agent.GetInstanceID()} state={Agent.Locomotion.m_currentStateEnum} " +
                 $"item={m_itemStatus} flags={LatestPose.Flags} " +
+                $"hands={m_handAnimationReason}/{(m_wasGameHandAnimation ? "game" : "vr")} " +
                 $"armSolves={m_rightSolves}/{m_leftSolves} armErrorM={m_rightError:F3}/{m_leftError:F3} " +
                 $"armWeights={m_ik.m_rightArmIK.solver.IKPositionWeight:F2}/{m_ik.m_leftArmIK.solver.IKPositionWeight:F2} " +
+                $"aimWeight={m_ik.m_aimIK.solver.IKPositionWeight:F2} " +
+                AnimatedItemDiagnostics() +
                 $"postSolverFixes={m_postSolverCorrections} displacedBy={m_lastDisplacingSolver} " +
                 $"postSolverArmErrorM={m_postSolverPreRightError:F3}/{m_postSolverPreLeftError:F3}>" +
                 $"{m_postSolverRightError:F3}/{m_postSolverLeftError:F3} " +
@@ -485,6 +597,23 @@ namespace GTFO_VR.Core.VRSync
                 GripDiagnostics();
         }
 
+        private string AnimatedItemDiagnostics()
+        {
+            if (!m_wasGameHandAnimation || Agent.Inventory == null)
+                return string.Empty;
+
+            ItemEquippable item = m_animatedWeapon != null
+                ? m_animatedWeapon : Agent.Inventory.WieldedItem;
+            if (item == null)
+                return "animItem=none ";
+
+            Transform itemTransform = item.transform;
+            string parent = itemTransform.parent != null ? itemTransform.parent.name : "none";
+            Vector3 modelLocal = m_model.transform.InverseTransformPoint(itemTransform.position);
+            return $"animItem={item.PublicName}/parent={parent}/local={itemTransform.localPosition}" +
+                $"/modelLocal={modelLocal} ";
+        }
+
         // Full-body/grounding IK can move the shoulder chain after the individual arm
         // solvers have already reached their targets. Both live-test logs showed the
         // same result: armErrorM=0 immediately after the arm solve, then both hands were
@@ -496,6 +625,21 @@ namespace GTFO_VR.Core.VRSync
             if (m_lastRenderFinalizeFrame == Time.frameCount) return;
             m_lastRenderFinalizeFrame = Time.frameCount;
             m_renderSamples++;
+
+            if (m_wasGameHandAnimation)
+            {
+                m_preRenderRightError = m_preRenderLeftError = -1f;
+                m_renderRightError = m_renderLeftError = m_renderItemError = -1f;
+                if (m_headBone)
+                {
+                    // Full-body/grounding solvers may still move the neck after ApplyPose.
+                    // We released only the arms/item, so keep head tracking authoritative.
+                    ApplyHeadRotation(m_smoothedPose);
+                    m_renderHeadError = Quaternion.Angle(m_headBone.rotation,
+                        m_smoothedPose.BodyYaw * m_smoothedPose.HeadRot);
+                }
+                return;
+            }
 
             m_preRenderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
             m_preRenderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
@@ -645,8 +789,11 @@ namespace GTFO_VR.Core.VRSync
         private void PlaceOrReleaseWeapon(pVRPose p)
         {
             ItemEquippable agentWeapon = Agent.Inventory != null ? Agent.Inventory.WieldedItem : null;
+            string itemParent = agentWeapon != null && agentWeapon.transform.parent != null
+                ? agentWeapon.transform.parent.name : "none";
             string itemStatus = agentWeapon == null ? "none" :
-                $"{agentWeapon.PublicName}/slot={Agent.Inventory.WieldedSlot}/wire={p.HeldItemSlot}";
+                $"{agentWeapon.PublicName}/slot={Agent.Inventory.WieldedSlot}/wire={p.HeldItemSlot}" +
+                $"/parent={itemParent}";
             if (m_itemStatus != itemStatus)
             {
                 m_itemStatus = itemStatus;
@@ -667,17 +814,40 @@ namespace GTFO_VR.Core.VRSync
             }
             if (m_botWeapon == null)
             {
+                // PlayerInventorySynced.WieldedItem returns the queued item before
+                // DoEquipItem has moved it out of the backpack. Do not steal that item:
+                // the game must first attach it to ItemAlign and calculate its grip
+                // offset, otherwise the equip animation sees it floating at a stale
+                // model-local pose.
+                Transform itemAlign = m_model != null ? m_model.ItemAlign : null;
+                if (itemAlign != null && agentWeapon.transform.parent != itemAlign)
+                    return;
+
+                // Rebuild the canonical third-person grip offset before caching it.
+                // This is normally done by DoEquipItem; repeating it here also repairs
+                // an item whose local transform was polluted by an interrupted switch.
+                if (itemAlign != null)
+                {
+                    // UpdateSyncIKGrips/CalcRightHandGripOffset is not idempotent. The
+                    // game's DoEquipItem always establishes this exact baseline first.
+                    agentWeapon.transform.localPosition = Vector3.zero;
+                    agentWeapon.transform.localRotation = Quaternion.identity;
+                    agentWeapon.transform.localScale = Vector3.one;
+                    agentWeapon.UpdateSyncIKGrips(itemAlign);
+                }
+
                 // First item (or the old one was just released): take over this one.
                 m_botWeapon = agentWeapon;
                 m_botWeaponOriginalParent = agentWeapon.transform.parent;
                 m_botWeaponOriginalLocalPos = agentWeapon.transform.localPosition;
                 m_botWeaponOriginalLocalRot = agentWeapon.transform.localRotation;
+                m_botWeaponOriginalLocalScale = agentWeapon.transform.localScale;
                 m_botWeapon.transform.SetParent(modelT, false);
             }
             else if (m_botWeapon.transform.parent != modelT)
             {
-                // The game re-parented it (e.g. during its own equip transition);
-                // re-assert.
+                // The game re-parented it outside a detected transition; resume the
+                // normal tracked-item ownership immediately.
                 m_botWeapon.transform.SetParent(modelT, false);
             }
 
@@ -790,6 +960,8 @@ namespace GTFO_VR.Core.VRSync
 
         private void SolveArmsFromFinalBodyPose()
         {
+            if (m_wasGameHandAnimation)
+                return;
             // Calling the solvers directly avoids SolverManager.UpdateSolverExternal's
             // skip-next-update flag. Targets and weights were asserted in ApplyPose.
             m_ik.m_rightArmIK.solver.Update();
@@ -821,19 +993,68 @@ namespace GTFO_VR.Core.VRSync
         /// Return the driven weapon to the game's grip anchor + local transform so the
         /// agent holds it normally again. Safe no-op if nothing is currently driven.
         /// </summary>
-        private void ReleaseWeapon()
+        private void ReleaseWeapon(bool preserveForAnimation = false)
         {
-            // A remote equip/drop may already have put this item on the backpack or
-            // into the world. Only undo parenting that we still own.
-            if (m_botWeapon != null && m_botWeaponOriginalParent != null && m_model
-                && m_botWeapon.transform.parent == m_model.transform)
+            if (m_botWeapon != null && m_botWeaponOriginalParent != null && m_model)
             {
-                m_botWeapon.transform.SetParent(m_botWeaponOriginalParent, false);
-                m_botWeapon.transform.localPosition = m_botWeaponOriginalLocalPos;
-                m_botWeapon.transform.localRotation = m_botWeaponOriginalLocalRot;
+                Transform item = m_botWeapon.transform;
+                Vector3 badLocal = item.localPosition;
+
+                // Only undo a hierarchy we still own. During an equip transition the
+                // game may already have moved the old item to its backpack attachment.
+                if (item.parent == m_model.transform)
+                {
+                    item.SetParent(m_botWeaponOriginalParent, false);
+                    item.localPosition = m_botWeaponOriginalLocalPos;
+                    item.localRotation = m_botWeaponOriginalLocalRot;
+                    item.localScale = m_botWeaponOriginalLocalScale;
+                }
+
+                if (preserveForAnimation && item.parent == m_botWeaponOriginalParent)
+                {
+                    m_animatedWeapon = m_botWeapon;
+                    m_animatedWeaponParent = m_botWeaponOriginalParent;
+                    m_animatedWeaponLocalPos = m_botWeaponOriginalLocalPos;
+                    m_animatedWeaponLocalRot = m_botWeaponOriginalLocalRot;
+                    m_animatedWeaponLocalScale = m_botWeaponOriginalLocalScale;
+                }
+
+                string parentName = item.parent != null ? item.parent.name : "none";
+                Log.Info($"{m_logContext} itemRelease parent={parentName} " +
+                    $"local={badLocal}>{item.localPosition} animation={preserveForAnimation}");
             }
             m_botWeapon = null;
             m_botWeaponOriginalParent = null;
+        }
+
+        private void MaintainAnimatedWeaponAttachment()
+        {
+            if (m_animatedWeapon == null || m_animatedWeaponParent == null)
+            {
+                ClearAnimatedWeapon();
+                return;
+            }
+
+            Transform item = m_animatedWeapon.transform;
+            if (item.parent != m_animatedWeaponParent)
+            {
+                // Weapon switches eventually move the outgoing item to its backpack.
+                // From that point onward its hierarchy belongs entirely to the game.
+                ClearAnimatedWeapon();
+                return;
+            }
+
+            // The body animation moves ItemAlign. Keep only the item's authored grip
+            // offset stable beneath that animated parent; never write its world pose.
+            item.localPosition = m_animatedWeaponLocalPos;
+            item.localRotation = m_animatedWeaponLocalRot;
+            item.localScale = m_animatedWeaponLocalScale;
+        }
+
+        private void ClearAnimatedWeapon()
+        {
+            m_animatedWeapon = null;
+            m_animatedWeaponParent = null;
         }
 
         private Transform CreateTargetTransform(string name)
@@ -855,6 +1076,7 @@ namespace GTFO_VR.Core.VRSync
         {
             RestoreFrame();
             ReleaseWeapon();
+            ClearAnimatedWeapon();
             if (m_ikConfigured && m_ik)
             {
                 if (m_ik.m_rightArmIK != null)

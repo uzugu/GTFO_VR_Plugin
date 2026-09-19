@@ -19,12 +19,13 @@ namespace GTFO_VR.Core.VRSync
         public bool IsMelee => (Flags & 4) != 0;
         public bool HasHeldItem => (Flags & 8) != 0;
         public bool LeftHanded => (Flags & 16) != 0;
+        public bool HandsAnimating => (Flags & 32) != 0;
     }
 
     public static class VRSyncNetPayload
     {
         public const ushort ReservedKey = 0xFFFC;
-        public const byte Version = 1;
+        public const byte Version = 2;
         public const byte MsgBeacon = 0, MsgPose = 1, MsgInactive = 2;
         public const int HeaderSize = 20;
         private const uint Magic = 0x52565447; // GTVR, little endian
@@ -94,7 +95,7 @@ namespace GTFO_VR.Core.VRSync
 
         public static bool Validate(ref pVRPose p)
         {
-            return (p.Flags & ~31) == 0
+            return (p.Flags & ~63) == 0
                 && Position(p.BodyPos) && Math.Abs(p.BodyPos.y) < 0.05f
                 && Position(p.HeadPos) && Position(p.RightHandPos) && Position(p.LeftHandPos)
                 && Rotation(ref p.BodyYaw) && Rotation(ref p.HeadRot)
