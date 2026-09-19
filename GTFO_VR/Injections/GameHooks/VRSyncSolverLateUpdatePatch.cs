@@ -32,6 +32,7 @@ namespace GTFO_VR.Injections.GameHooks
 
         private static void Postfix(SolverManager __instance)
         {
+            VRSyncLocalTest.ObserveSolver(__instance);
             VRSyncNet.ObserveSolver(__instance);
         }
     }

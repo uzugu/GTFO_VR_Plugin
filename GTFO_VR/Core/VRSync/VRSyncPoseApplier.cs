@@ -6,10 +6,11 @@ using UnityEngine;
 namespace GTFO_VR.Core.VRSync
 {
     /// <summary>
-    /// Applies a received pVRPose (VRSyncNet) to one remote player's visual model.
+    /// Applies a received pVRPose to one player's visual model. This is the shared
+    /// production pipeline for both network peers and the local bot test.
     ///
-    /// Per-agent port of the VRSyncLocalTest apply pipeline. The game re-asserts its
-    /// own aim/look targets and IK weights every frame in the Update phase, and the
+    /// The game re-asserts its own aim/look targets and IK weights every frame in the
+    /// Update phase, and the
     /// RootMotion solvers solve in LateUpdate, so the pose is (re)applied every frame
     /// from VRSyncNet.ApplyBeforeSolvers() — called by VRSyncSolverLateUpdatePatch inside the first
     /// solver's LateUpdate — after every Update-phase re-assert and before any solver
@@ -22,7 +23,7 @@ namespace GTFO_VR.Core.VRSync
     ///     received BodyPos
     ///   - both arms: LimbIK targets at the received hand poses; for a non-melee
     ///     held item the gripping hand(s) anchor to the agent's OWN item grips, so
-    ///     the hand sits on the item (same rule as the local test)
+    ///     the hand sits on the item
     ///   - head: the model head bone's WORLD rotation is set to the received HeadRot
     ///     (full yaw + pitch + roll; the game's LookAtIK can't roll, so it is
     ///     disabled on the agent while we drive the head)
@@ -50,6 +51,8 @@ namespace GTFO_VR.Core.VRSync
         private Transform m_headBone;
         // The model NECK bone — the head's rotation pivot / diagnostics reference.
         private Transform m_neckBone;
+        private Transform m_rightThumbBone, m_rightIndexBone, m_rightLittleBone;
+        private Transform m_leftThumbBone, m_leftIndexBone, m_leftLittleBone;
         // Calibration offset on top of the received head rotation. Identity by default.
         private Quaternion m_headRotOffset = Quaternion.identity;
         // The game's full-crouch head drop (camPosDefault.y - camPosCrouch.y), used to
@@ -88,7 +91,7 @@ namespace GTFO_VR.Core.VRSync
         // agent or a large jump (map teleport / spawn).
         private Vector3 m_smoothModelPos;
         private bool m_hasSmoothModelPos;
-        private const float s_modelPosSmoothTime = 0.03f;
+        private readonly float m_modelPosSmoothTime;
         private const float s_teleportSnapDist = 1.0f;
         private bool m_ikConfigured;
         private bool m_hasRightArmIK;
@@ -105,11 +108,18 @@ namespace GTFO_VR.Core.VRSync
         private pVRPose m_smoothedPose;
         private long m_rightSolves, m_leftSolves;
         private float m_rightError = -1f, m_leftError = -1f, m_headError = -1f;
+        private int m_lastApplyFrame = -1, m_rightSolveFrame = -1, m_leftSolveFrame = -1;
+        private long m_postSolverCorrections;
+        private string m_lastDisplacingSolver = "none";
+        private float m_postSolverPreRightError = -1f, m_postSolverPreLeftError = -1f;
+        private float m_postSolverRightError = -1f, m_postSolverLeftError = -1f;
+        private float m_rightUpperLength, m_rightLowerLength, m_leftUpperLength, m_leftLowerLength;
         private string m_itemStatus;
         private long m_renderSamples;
         private int m_lastRenderFinalizeFrame = -1;
         private float m_preRenderRightError = -1f, m_preRenderLeftError = -1f;
         private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f, m_renderItemError = -1f;
+        private readonly string m_logContext;
 
         public bool Matches(PlayerAgent agent) => Agent == agent && m_model == agent.PlayerSyncModel && m_ik == agent.SyncIK;
 
@@ -122,10 +132,13 @@ namespace GTFO_VR.Core.VRSync
         private Vector3 m_botWeaponOriginalLocalPos;
         private Quaternion m_botWeaponOriginalLocalRot;
 
-        public VRSyncPoseApplier(PlayerAgent agent, ulong senderID)
+        public VRSyncPoseApplier(PlayerAgent agent, ulong senderID,
+            float modelPositionSmoothTime = 0.03f, string logContext = null)
         {
             Agent = agent;
             SenderID = senderID;
+            m_modelPosSmoothTime = modelPositionSmoothTime;
+            m_logContext = logContext ?? $"VRSyncNet: peer={senderID}";
         }
 
         /// <summary>
@@ -196,6 +209,15 @@ namespace GTFO_VR.Core.VRSync
             {
                 m_neckBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.Neck);
             }
+            if (Agent.AnimatorBody != null && Agent.AnimatorBody.isHuman)
+            {
+                m_rightThumbBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.RightThumbProximal);
+                m_rightIndexBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.RightIndexProximal);
+                m_rightLittleBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.RightLittleProximal);
+                m_leftThumbBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.LeftThumbProximal);
+                m_leftIndexBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.LeftIndexProximal);
+                m_leftLittleBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.LeftLittleProximal);
+            }
             Log.Info($"VRSyncPoseApplier: {Agent.gameObject.name} " +
                      $"head={(m_headBone != null ? m_headBone.name : "<none>")} " +
                      $"neck={(m_neckBone != null ? m_neckBone.name : "<none>")} " +
@@ -210,6 +232,15 @@ namespace GTFO_VR.Core.VRSync
             if (m_hasRightArmIK)
                 Agent.SyncIK.m_rightArmIK.enabled = true;
 
+            m_rightUpperLength = Vector3.Distance(m_ik.m_rightArmIK.solver.bone1.transform.position,
+                m_ik.m_rightArmIK.solver.bone2.transform.position);
+            m_rightLowerLength = Vector3.Distance(m_ik.m_rightArmIK.solver.bone2.transform.position,
+                m_ik.m_rightArmIK.solver.bone3.transform.position);
+            m_leftUpperLength = Vector3.Distance(m_ik.m_leftArmIK.solver.bone1.transform.position,
+                m_ik.m_leftArmIK.solver.bone2.transform.position);
+            m_leftLowerLength = Vector3.Distance(m_ik.m_leftArmIK.solver.bone2.transform.position,
+                m_ik.m_leftArmIK.solver.bone3.transform.position);
+
             if (!Agent.SyncIK.IsEnabled())
                 Agent.SyncIK.SoftEnable();
 
@@ -222,6 +253,8 @@ namespace GTFO_VR.Core.VRSync
         {
             if (!Agent || !Agent.PlayerSyncModel || !Agent.SyncIK)
                 return;
+
+            m_lastApplyFrame = Time.frameCount;
 
             pVRPose p = SmoothPose(LatestPose);
             var ik = Agent.SyncIK;
@@ -289,7 +322,7 @@ namespace GTFO_VR.Core.VRSync
             }
             else
             {
-                float t = 1f - Mathf.Exp(-Time.unscaledDeltaTime / s_modelPosSmoothTime);
+                float t = 1f - Mathf.Exp(-Time.unscaledDeltaTime / m_modelPosSmoothTime);
                 m_smoothModelPos = Vector3.Lerp(m_smoothModelPos, modelTarget, t);
             }
             Agent.PlayerSyncModel.transform.position = m_smoothModelPos;
@@ -323,10 +356,12 @@ namespace GTFO_VR.Core.VRSync
             {
                 // Primary hand → the item's primary grip (no-op if the item has no
                 // grip → keeps the controller pose).
-                ApplyGripAnchoredHand(m_botWeapon.RightHandGripTrans, ref rightPos, ref rightRot);
+                ApplyGripAnchoredHand(m_botWeapon.RightHandGripTrans, ref rightPos, ref rightRot,
+                    mirrorForOppositeHand: p.LeftHanded);
                 // Offhand → the supporting grip, only for a double-handing weapon.
                 if (p.HasWeapon && p.IsDoubleHanding)
-                    ApplyGripAnchoredHand(m_botWeapon.LeftHandGripTrans, ref leftPos, ref leftRot);
+                    ApplyGripAnchoredHand(m_botWeapon.LeftHandGripTrans, ref leftPos, ref leftRot,
+                        mirrorForOppositeHand: p.LeftHanded);
             }
 
             // The hand-target transforms are children of the model root, so the received
@@ -397,14 +432,31 @@ namespace GTFO_VR.Core.VRSync
             if (solver == m_ik.m_rightArmIK)
             {
                 m_rightSolves++;
+                m_rightSolveFrame = Time.frameCount;
                 m_rightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
             }
             else if (solver == m_ik.m_leftArmIK)
             {
                 m_leftSolves++;
+                m_leftSolveFrame = Time.frameCount;
                 m_leftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
             }
-            else return;
+            else if (m_lastApplyFrame == Time.frameCount
+                && m_rightSolveFrame == Time.frameCount && m_leftSolveFrame == Time.frameCount)
+            {
+                float rightError = RightArmError();
+                float leftError = LeftArmError();
+                if (rightError > 0.002f || leftError > 0.002f)
+                {
+                    m_lastDisplacingSolver = $"{solver.GetType().Name}@{solver.gameObject.name}";
+                    m_postSolverPreRightError = rightError;
+                    m_postSolverPreLeftError = leftError;
+                    SolveArmsFromFinalBodyPose();
+                    m_postSolverRightError = RightArmError();
+                    m_postSolverLeftError = LeftArmError();
+                    m_postSolverCorrections++;
+                }
+            }
             if (m_headBone)
                 m_headError = Quaternion.Angle(m_headBone.rotation, m_model.transform.rotation * m_smoothedPose.HeadRot);
         }
@@ -416,6 +468,11 @@ namespace GTFO_VR.Core.VRSync
                 $"item={m_itemStatus} flags={LatestPose.Flags} " +
                 $"armSolves={m_rightSolves}/{m_leftSolves} armErrorM={m_rightError:F3}/{m_leftError:F3} " +
                 $"armWeights={m_ik.m_rightArmIK.solver.IKPositionWeight:F2}/{m_ik.m_leftArmIK.solver.IKPositionWeight:F2} " +
+                $"postSolverFixes={m_postSolverCorrections} displacedBy={m_lastDisplacingSolver} " +
+                $"postSolverArmErrorM={m_postSolverPreRightError:F3}/{m_postSolverPreLeftError:F3}>" +
+                $"{m_postSolverRightError:F3}/{m_postSolverLeftError:F3} " +
+                $"armStretchM={RightArmStretch():F3}/{LeftArmStretch():F3} " +
+                $"reachExcessM={RightReachExcess():F3}/{LeftReachExcess():F3} " +
                 $"headErrorDeg={m_headError:F1} renderSamples={m_renderSamples} " +
                 $"preRenderArmErrorM={m_preRenderRightError:F3}/{m_preRenderLeftError:F3} " +
                 $"renderArmErrorM={m_renderRightError:F3}/{m_renderLeftError:F3} " +
@@ -424,7 +481,8 @@ namespace GTFO_VR.Core.VRSync
                 $"spine={m_standUpAngle:F1} body={LatestPose.BodyPos} model={m_model.transform.position} " +
                 $"root={Agent.transform.position} headBone={(m_headBone ? m_headBone.position.ToString() : "missing")} " +
                 $"primary={LatestPose.RightHandPos}/{LatestPose.RightHandRot} offhand={LatestPose.LeftHandPos}/{LatestPose.LeftHandRot} " +
-                $"headRot={LatestPose.HeadRot} bodyYaw={LatestPose.BodyYaw} itemPose={LatestPose.HeldItemPos}/{LatestPose.HeldItemRot}";
+                $"headRot={LatestPose.HeadRot} bodyYaw={LatestPose.BodyYaw} itemPose={LatestPose.HeldItemPos}/{LatestPose.HeldItemRot} " +
+                GripDiagnostics();
         }
 
         // Full-body/grounding IK can move the shoulder chain after the individual arm
@@ -442,14 +500,11 @@ namespace GTFO_VR.Core.VRSync
             m_preRenderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
             m_preRenderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
 
-            // Calling the solvers directly avoids SolverManager.UpdateSolverExternal's
-            // skip-next-update flag. Targets and weights were asserted in ApplyPose.
-            m_ik.m_rightArmIK.solver.Update();
-            m_ik.m_leftArmIK.solver.Update();
-
-            // Arm solving can propagate small rotations through the upper-body chain;
-            // the HMD rotation remains authoritative for the head.
-            ApplyHeadRotation(m_smoothedPose);
+            // The solver postfix normally corrects any later full-body/grounding move.
+            // Keep this as a fallback for non-SolverManager writes between LateUpdate and
+            // rendering, but avoid a redundant late solve when the chain is already exact.
+            if (m_preRenderRightError > 0.002f || m_preRenderLeftError > 0.002f)
+                SolveArmsFromFinalBodyPose();
 
             m_renderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
             m_renderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
@@ -595,7 +650,7 @@ namespace GTFO_VR.Core.VRSync
             if (m_itemStatus != itemStatus)
             {
                 m_itemStatus = itemStatus;
-                Log.Info($"VRSyncNet: peer={SenderID} item={itemStatus}");
+                Log.Info($"{m_logContext} item={itemStatus}");
             }
             if (agentWeapon == null || !p.HasHeldItem || (int)Agent.Inventory.WieldedSlot != p.HeldItemSlot)
             {
@@ -635,21 +690,131 @@ namespace GTFO_VR.Core.VRSync
         }
 
         /// <summary>
-        /// Anchor one hand's IK target to a weapon grip: set its position/rotation to
-        /// the grip's pose in the model (= body) frame. No (wrist→palm) offset — the
-        /// game builds each grip at the exact point the hand belongs, so the grip IS the
-        /// hand position. No-op (keeps the received controller pose) when the grip is
-        /// null (e.g. a one-handed weapon's offhand).
+        /// Anchor a hand target directly to a weapon grip in the model (= body) frame.
+        /// The item grips are authored for right-handed use, so left-handed use mirrors
+        /// the complete grip pose across the item's local X plane. No-op when the grip
+        /// is null.
         /// </summary>
-        private void ApplyGripAnchoredHand(Transform grip, ref Vector3 pos, ref Quaternion rot)
+        private void ApplyGripAnchoredHand(Transform grip, ref Vector3 pos, ref Quaternion rot,
+            bool mirrorForOppositeHand)
         {
             if (grip == null)
                 return;
 
+            Transform itemT = m_botWeapon.transform;
             Transform modelT = Agent.PlayerSyncModel.transform;
-            pos = modelT.InverseTransformPoint(grip.position);
-            rot = Quaternion.Inverse(modelT.rotation) * grip.rotation;
+
+            Vector3 gripLocalPos = itemT.InverseTransformPoint(grip.position);
+            Quaternion gripLocalRot = Quaternion.Inverse(itemT.rotation) * grip.rotation;
+            if (mirrorForOppositeHand)
+            {
+                gripLocalPos.x = -gripLocalPos.x;
+
+                // Reflect forward/up through the item's X plane. LookRotation rebuilds
+                // a proper rotation (rather than the invalid reflected basis), with the
+                // hand's local right axis reversed for the opposite anatomy.
+                Vector3 forward = gripLocalRot * Vector3.forward;
+                Vector3 up = gripLocalRot * Vector3.up;
+                forward.x = -forward.x;
+                up.x = -up.x;
+                gripLocalRot = Quaternion.LookRotation(forward, up);
+
+                // Reflection alone leaves the opposite hand facing backward: in the
+                // Hel Gun diagnostics the right palm extends along item-local +Z while
+                // the reflected left palm extends along -Z. Turn around the hand's
+                // local up axis so X/Z reverse while the thumb/up axis stays unchanged.
+                gripLocalRot *= Quaternion.AngleAxis(180f, Vector3.up);
+
+                // Both hands' wrist-to-knuckle vector is hand-local -X. Roll around
+                // that axis to turn the left palm/finger curl toward the weapon while
+                // leaving the wrist-to-knuckle direction and grip position unchanged.
+                gripLocalRot *= Quaternion.AngleAxis(180f, Vector3.right);
+            }
+
+            pos = modelT.InverseTransformPoint(itemT.TransformPoint(gripLocalPos));
+            rot = Quaternion.Inverse(modelT.rotation) * itemT.rotation * gripLocalRot;
         }
+
+        private string GripDiagnostics()
+        {
+            if (!m_botWeapon || !m_model || !m_ik)
+                return "gripDiag=none";
+
+            Transform item = m_botWeapon.transform;
+            Transform rightWrist = m_ik.m_rightArmIK.solver.bone3.transform;
+            Transform leftWrist = m_ik.m_leftArmIK.solver.bone3.transform;
+            Vector3 rightPalm = PalmCenter(rightWrist, m_rightThumbBone, m_rightIndexBone, m_rightLittleBone);
+            Vector3 leftPalm = PalmCenter(leftWrist, m_leftThumbBone, m_leftIndexBone, m_leftLittleBone);
+
+            return $"gripDiag=" +
+                $"gripP={LocalPoint(item, m_botWeapon.RightHandGripTrans)} " +
+                $"gripS={LocalPoint(item, m_botWeapon.LeftHandGripTrans)} " +
+                $"targetR={Fmt(item.InverseTransformPoint(m_rightArmTarget.position))}/" +
+                $"{Fmt(Quaternion.Inverse(item.rotation) * m_rightArmTarget.rotation)} " +
+                $"targetL={Fmt(item.InverseTransformPoint(m_leftArmTarget.position))}/" +
+                $"{Fmt(Quaternion.Inverse(item.rotation) * m_leftArmTarget.rotation)} " +
+                $"wristR={Fmt(item.InverseTransformPoint(rightWrist.position))}/" +
+                $"{Fmt(Quaternion.Inverse(item.rotation) * rightWrist.rotation)} " +
+                $"wristL={Fmt(item.InverseTransformPoint(leftWrist.position))}/" +
+                $"{Fmt(Quaternion.Inverse(item.rotation) * leftWrist.rotation)} " +
+                $"palmR={Fmt(item.InverseTransformPoint(rightPalm))} " +
+                $"palmL={Fmt(item.InverseTransformPoint(leftPalm))} " +
+                $"itemInHandR={Fmt(rightWrist.InverseTransformPoint(item.position))}/" +
+                $"{Fmt(Quaternion.Inverse(rightWrist.rotation) * item.rotation)} " +
+                $"itemInHandL={Fmt(leftWrist.InverseTransformPoint(item.position))}/" +
+                $"{Fmt(Quaternion.Inverse(leftWrist.rotation) * item.rotation)}";
+        }
+
+        private static Vector3 PalmCenter(Transform wrist, Transform thumb, Transform index, Transform little)
+        {
+            if (thumb && index && little)
+                return (thumb.position + index.position + little.position) / 3f;
+            return wrist.position;
+        }
+
+        private static string LocalPoint(Transform frame, Transform point) =>
+            point ? Fmt(frame.InverseTransformPoint(point.position)) : "missing";
+
+        private static string Fmt(Vector3 value) =>
+            $"({value.x:F4},{value.y:F4},{value.z:F4})";
+
+        private static string Fmt(Quaternion value) =>
+            $"({value.x:F4},{value.y:F4},{value.z:F4},{value.w:F4})";
+
+        private float RightArmError() => Vector3.Distance(
+            m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
+
+        private float LeftArmError() => Vector3.Distance(
+            m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
+
+        private void SolveArmsFromFinalBodyPose()
+        {
+            // Calling the solvers directly avoids SolverManager.UpdateSolverExternal's
+            // skip-next-update flag. Targets and weights were asserted in ApplyPose.
+            m_ik.m_rightArmIK.solver.Update();
+            m_ik.m_leftArmIK.solver.Update();
+            ApplyHeadRotation(m_smoothedPose);
+        }
+
+        private float RightArmStretch() =>
+            Vector3.Distance(m_ik.m_rightArmIK.solver.bone1.transform.position,
+                m_ik.m_rightArmIK.solver.bone2.transform.position) - m_rightUpperLength
+            + Vector3.Distance(m_ik.m_rightArmIK.solver.bone2.transform.position,
+                m_ik.m_rightArmIK.solver.bone3.transform.position) - m_rightLowerLength;
+
+        private float LeftArmStretch() =>
+            Vector3.Distance(m_ik.m_leftArmIK.solver.bone1.transform.position,
+                m_ik.m_leftArmIK.solver.bone2.transform.position) - m_leftUpperLength
+            + Vector3.Distance(m_ik.m_leftArmIK.solver.bone2.transform.position,
+                m_ik.m_leftArmIK.solver.bone3.transform.position) - m_leftLowerLength;
+
+        private float RightReachExcess() => Vector3.Distance(
+            m_ik.m_rightArmIK.solver.bone1.transform.position, m_rightArmTarget.position)
+            - m_rightUpperLength - m_rightLowerLength;
+
+        private float LeftReachExcess() => Vector3.Distance(
+            m_ik.m_leftArmIK.solver.bone1.transform.position, m_leftArmTarget.position)
+            - m_leftUpperLength - m_leftLowerLength;
 
         /// <summary>
         /// Return the driven weapon to the game's grip anchor + local transform so the
