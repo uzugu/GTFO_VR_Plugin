@@ -100,10 +100,13 @@ namespace GTFO_VR.Core.VRSync
             if (Time.unscaledTime - m_lastDiagTime >= DiagnosticInterval)
             {
                 m_lastDiagTime = Time.unscaledTime;
-                Vector3 handOffset = VRSyncData.DebugHandPalmOffset;
+                Vector3 rightOffset = VRSyncData.DebugRightHandPalmOffset;
+                Vector3 leftOffset = VRSyncData.DebugLeftHandPalmOffset;
                 Log.Info($"VRSyncLocalTest DIAG: leftHanded={m_latestPose.LeftHanded} " +
                     $"captureAge={Time.unscaledTime - m_lastPoseCapture:F3}s " +
-                    $"handOffset=({handOffset.x:F3},{handOffset.y:F3},{handOffset.z:F3}) " +
+                    $"handOffsetR=({rightOffset.x:F3},{rightOffset.y:F3},{rightOffset.z:F3}) " +
+                    $"handOffsetL=({leftOffset.x:F3},{leftOffset.y:F3},{leftOffset.z:F3}) " +
+                    $"sourceItemScale={VRSyncData.HeldItemScale} " +
                     $"primaryFired={VRSyncSyncIKAimUpdatePatch.FiredCount} " +
                     $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} " +
                     m_applier.Diagnostics());

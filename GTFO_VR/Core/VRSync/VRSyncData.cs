@@ -68,6 +68,7 @@ namespace GTFO_VR.Core.VRSync
         // the hands and head — so it lands in the mirrored hand.
         public static Vector3 HeldItemPos;
         public static Quaternion HeldItemRot;
+        public static Vector3 HeldItemScale;
         public static string HeldItemName;   // item.PublicName (specific, e.g. "SANTONIAN HDH")
         public static Player.InventorySlot HeldItemSlot; // item's inventory slot (slot-based receiver logic)
         public static bool HasHeldItem;
@@ -89,6 +90,7 @@ namespace GTFO_VR.Core.VRSync
         {
             HasPose = false;
             HasHeldItem = false;
+            HeldItemScale = Vector3.zero;
             m_hasBodyYaw = false;
             LastSampleTime = float.NegativeInfinity;
         }
@@ -110,23 +112,28 @@ namespace GTFO_VR.Core.VRSync
         private static readonly Quaternion s_handConvention =
             new Quaternion(0.0142f, 0.5805f, 0.4035f, 0.7071f) * Quaternion.Euler(-45f, -2f, 25f);
 
-        // The tracked controller origin sits at the PALM, but the bot's LimbIK hand target is
-        // its WRIST. So shift the hand target back along the hand's local axes by this
-        // (wrist→palm) offset to put the bot's palm — not wrist — on the tracked point.
-        // Applied in the hand's local frame (handRot * offset), so it follows the hand through
-        // pitches and keeps the palm as the rotation pivot. Baked from a live visual dial-in
-        // (hammer seated in the palm rather than the wrist, hand pivoting about the palm);
-        // the same local-frame offset applies to both hands, not mirrored.
-        private static readonly Vector3 s_handPalmOffset = new Vector3(-0.09f, 0.06f, 0.07f);
+        // Empirical controller-origin→wrist calibration, tuned against the right hand
+        // holding a hammer. It is not merely the proximal-bone centroid: that centroid
+        // is not the physical controller grip point. Preserve the known-good right-hand
+        // calibration. The left value is calibrated separately so its rendered palm
+        // mirrors the known-good right palm around a symmetric melee handle; the hand
+        // rig's mirrored bone basis means this is not a component-wise sign flip.
+        private static readonly Vector3 s_rightHandPalmOffset = new Vector3(-0.09f, 0.06f, 0.07f);
+        private static readonly Vector3 s_leftHandPalmOffset = new Vector3(-0.1172f, -0.0182f, 0.0838f);
 
         // [TEST-ONLY, TEMPORARY] Live tune added to the (wrist→palm) hand offset so the
         // normal, non-grip-anchored hand's position can be eyeballed in-game. The vertical
         // component (Y = thumb/rod) is the one that reads as the hand sitting too low.
         // Nudged by the number row / numpad (VRSyncLocalTest.
-        // HandleHandPalmTuneInput: 7/1=±X, 8/2=±Y, 9/3=±Z); read DebugHandPalmOffset off the
-        // DIAG log, then bake the value into s_handPalmOffset and delete this.
+        // HandleHandPalmTuneInput: 7/1=±X, 8/2=±Y, 9/3=±Z); read both offsets from the
+        // DIAG log, then bake the adjustment into the anatomical offsets and delete this.
         public static Vector3 debugHandPalmTune;
-        public static Vector3 DebugHandPalmOffset => s_handPalmOffset + debugHandPalmTune;
+        public static Vector3 DebugRightHandPalmOffset => s_rightHandPalmOffset + debugHandPalmTune;
+        public static Vector3 DebugLeftHandPalmOffset => s_leftHandPalmOffset + debugHandPalmTune;
+        public static Vector3 DebugMainHandPalmOffset => VRConfig.configUseLeftHand.Value
+            ? DebugLeftHandPalmOffset : DebugRightHandPalmOffset;
+        public static Vector3 DebugOffhandPalmOffset => VRConfig.configUseLeftHand.Value
+            ? DebugRightHandPalmOffset : DebugLeftHandPalmOffset;
 
         private static Quaternion m_bodyYaw;
         private static bool m_hasBodyYaw;
@@ -259,8 +266,8 @@ namespace GTFO_VR.Core.VRSync
             // wrist, so pull the hand target back along the hand's local axes by the (wrist→palm)
             // offset to put the bot's palm — not wrist — on the tracked point. In the hand's local
             // frame, so it tracks the hand through pitches and the palm stays the rotation pivot.
-            RightHandPos -= RightHandRot * DebugHandPalmOffset;
-            LeftHandPos -= LeftHandRot * DebugHandPalmOffset;
+            RightHandPos -= RightHandRot * DebugMainHandPalmOffset;
+            LeftHandPos -= LeftHandRot * DebugOffhandPalmOffset;
 
             // Held item pose + identity. The item's world transform was set by
             // UpdateHeldItemTransform() earlier in this same OnNewPoses() callback (VRPlayer),
@@ -275,6 +282,7 @@ namespace GTFO_VR.Core.VRSync
             {
                 HeldItemPos = bodyYawInv * (heldItem.transform.position - feet) - BodyPos;
                 HeldItemRot = bodyYawInv * heldItem.transform.rotation;
+                HeldItemScale = heldItem.transform.lossyScale;
                 HeldItemName = heldItem.PublicName;
                 HeldItemSlot = heldItem.ItemDataBlock != null ? heldItem.ItemDataBlock.inventorySlot : default;
                 HasHeldItem = true;
@@ -282,6 +290,7 @@ namespace GTFO_VR.Core.VRSync
             else
             {
                 HasHeldItem = false;
+                HeldItemScale = Vector3.zero;
             }
 
             // Flags (for future networking); the pose itself does not depend on weapon.

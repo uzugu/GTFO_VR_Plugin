@@ -747,6 +747,7 @@ namespace GTFO_VR.Core.VRSync
             Vector3 leftPalm = PalmCenter(leftWrist, m_leftThumbBone, m_leftIndexBone, m_leftLittleBone);
 
             return $"gripDiag=" +
+                $"itemScale={item.lossyScale} " +
                 $"gripP={LocalPoint(item, m_botWeapon.RightHandGripTrans)} " +
                 $"gripS={LocalPoint(item, m_botWeapon.LeftHandGripTrans)} " +
                 $"targetR={Fmt(item.InverseTransformPoint(m_rightArmTarget.position))}/" +

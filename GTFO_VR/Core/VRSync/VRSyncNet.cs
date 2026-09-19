@@ -209,7 +209,8 @@ namespace GTFO_VR.Core.VRSync
                 m_lastDiag = now;
                 Log.Info($"VRSyncNet DIAG: frame={Time.frameCount} focus={FocusStateEvents.currentState} " +
                     $"active={active} peers={Peers.Count} tx={m_tx} beaconTx={m_beacons} rejected={m_rejected} " +
-                    $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} sampleAge={now - VRSyncData.LastSampleTime:F3}s");
+                    $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} sampleAge={now - VRSyncData.LastSampleTime:F3}s " +
+                    $"sourceItemScale={VRSyncData.HeldItemScale}");
                 foreach (PlayerAgent agent in PlayerManager.PlayerAgentsInLevel)
                     if (agent && agent.Owner != null)
                         Log.Info($"VRSyncNet ROSTER: owner={agent.Owner.Lookup} local={agent.IsLocallyOwned} " +
