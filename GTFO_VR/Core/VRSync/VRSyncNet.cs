@@ -210,7 +210,11 @@ namespace GTFO_VR.Core.VRSync
                 Log.Info($"VRSyncNet DIAG: frame={Time.frameCount} focus={FocusStateEvents.currentState} " +
                     $"active={active} peers={Peers.Count} tx={m_tx} beaconTx={m_beacons} rejected={m_rejected} " +
                     $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} sampleAge={now - VRSyncData.LastSampleTime:F3}s " +
-                    $"sourceItemScale={VRSyncData.HeldItemScale}");
+                    $"leftHanded={VRConfig.configUseLeftHand.Value} sourceItemScale={VRSyncData.HeldItemScale} " +
+                    $"sourceItemForward={VRSyncData.HeldItemForward} sourceAimForward={VRSyncData.HeldItemAimForward} " +
+                    $"sourceItemAimErrorDeg={VRSyncData.HeldItemAimError:F1} " +
+                    $"sourceItemBasisHandedness={VRSyncData.HeldItemBasisHandedness:F3} " +
+                    $"sourceItemRotationBasisErrorDeg={VRSyncData.HeldItemRotationBasisError:F1}");
                 foreach (PlayerAgent agent in PlayerManager.PlayerAgentsInLevel)
                     if (agent && agent.Owner != null)
                         Log.Info($"VRSyncNet ROSTER: owner={agent.Owner.Lookup} local={agent.IsLocallyOwned} " +

@@ -118,7 +118,8 @@ namespace GTFO_VR.Core.VRSync
         private long m_renderSamples;
         private int m_lastRenderFinalizeFrame = -1;
         private float m_preRenderRightError = -1f, m_preRenderLeftError = -1f;
-        private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f, m_renderItemError = -1f;
+        private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f;
+        private float m_renderItemError = -1f, m_renderItemRotationError = -1f;
         private readonly string m_logContext;
         private bool m_wasGameHandAnimation;
         private string m_handAnimationReason = "none";
@@ -589,6 +590,7 @@ namespace GTFO_VR.Core.VRSync
                 $"preRenderArmErrorM={m_preRenderRightError:F3}/{m_preRenderLeftError:F3} " +
                 $"renderArmErrorM={m_renderRightError:F3}/{m_renderLeftError:F3} " +
                 $"renderHeadErrorDeg={m_renderHeadError:F1} renderItemErrorM={m_renderItemError:F3} " +
+                $"renderItemRotationErrorDeg={m_renderItemRotationError:F1} " +
                 $"headY={LatestPose.HeadPos.y:F2} crouch={m_crouchBlend:F2} " +
                 $"spine={m_standUpAngle:F1} body={LatestPose.BodyPos} model={m_model.transform.position} " +
                 $"root={Agent.transform.position} headBone={(m_headBone ? m_headBone.position.ToString() : "missing")} " +
@@ -629,7 +631,7 @@ namespace GTFO_VR.Core.VRSync
             if (m_wasGameHandAnimation)
             {
                 m_preRenderRightError = m_preRenderLeftError = -1f;
-                m_renderRightError = m_renderLeftError = m_renderItemError = -1f;
+                m_renderRightError = m_renderLeftError = m_renderItemError = m_renderItemRotationError = -1f;
                 if (m_headBone)
                 {
                     // Full-body/grounding solvers may still move the neck after ApplyPose.
@@ -656,6 +658,9 @@ namespace GTFO_VR.Core.VRSync
                 m_renderHeadError = Quaternion.Angle(m_headBone.rotation, m_smoothedPose.BodyYaw * m_smoothedPose.HeadRot);
             m_renderItemError = m_botWeapon
                 ? Vector3.Distance(m_botWeapon.transform.position, m_model.transform.TransformPoint(m_smoothedPose.HeldItemPos)) : -1f;
+            m_renderItemRotationError = m_botWeapon
+                ? Quaternion.Angle(m_botWeapon.transform.rotation,
+                    m_model.transform.rotation * m_smoothedPose.HeldItemRot) : -1f;
         }
 
         /// <summary>
@@ -856,7 +861,10 @@ namespace GTFO_VR.Core.VRSync
             // root's local space — the weapon keeps its natural size and sits at its
             // real height above the feet.
             m_botWeapon.transform.localPosition = p.HeldItemPos;
-            m_botWeapon.transform.localRotation = p.HeldItemRot;
+            // Apply the composed world rotation explicitly. Besides expressing the wire
+            // contract directly, this avoids inheriting any unusual scale/reflection in
+            // the remote model hierarchy while reconstructing a left-handed item pose.
+            m_botWeapon.transform.rotation = modelT.rotation * p.HeldItemRot;
         }
 
         /// <summary>

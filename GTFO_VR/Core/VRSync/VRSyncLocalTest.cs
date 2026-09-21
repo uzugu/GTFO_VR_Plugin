@@ -107,6 +107,10 @@ namespace GTFO_VR.Core.VRSync
                     $"handOffsetR=({rightOffset.x:F3},{rightOffset.y:F3},{rightOffset.z:F3}) " +
                     $"handOffsetL=({leftOffset.x:F3},{leftOffset.y:F3},{leftOffset.z:F3}) " +
                     $"sourceItemScale={VRSyncData.HeldItemScale} " +
+                    $"sourceItemForward={VRSyncData.HeldItemForward} sourceAimForward={VRSyncData.HeldItemAimForward} " +
+                    $"sourceItemAimErrorDeg={VRSyncData.HeldItemAimError:F1} " +
+                    $"sourceItemBasisHandedness={VRSyncData.HeldItemBasisHandedness:F3} " +
+                    $"sourceItemRotationBasisErrorDeg={VRSyncData.HeldItemRotationBasisError:F1} " +
                     $"primaryFired={VRSyncSyncIKAimUpdatePatch.FiredCount} " +
                     $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} " +
                     m_applier.Diagnostics());
