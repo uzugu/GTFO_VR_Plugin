@@ -57,6 +57,13 @@ namespace GTFO_VR.Core
 
         internal static ConfigEntry<bool> configProtube;
 
+        internal static ConfigEntry<bool> configVRSyncP2P;
+#if DEBUG_GTFO_VR
+        internal static ConfigEntry<bool> configVRSyncLocalTest;
+#endif
+        internal static ConfigEntry<float> configVRSyncPoseRate;
+        internal static ConfigEntry<float> configVRSyncBeaconCadence;
+
         private static List<BepinGTFOSettingBase> VRSettings = new List<BepinGTFOSettingBase>();
 
         private static uint baseVRConfigID = 110000;
@@ -77,6 +84,8 @@ namespace GTFO_VR.Core
             configDebugOrigin = BindBool(file, "Debug - If you see this, I screwed up!", "Show Origin debug", false, "Shows origin/roomscale debug visuals", "Show Origin debug");
             configDebugShowTwoHHitboxes = BindBool(file, "Debug - If you see this, I screwed up!", "Show 2H hitboxes", false, "Shows two handed weapon hitboxes", "Show 2H hitboxes");
             configDebugShowHammerHitbox = BindBool(file, "Debug - If you see this, I screwed up!", "Show hammer hitbox", false, "Shows hammer hitbox", "Hammer hitbox debug");
+            configVRSyncLocalTest = BindBool(file, "Debug - If you see this, I screwed up!", "Mirror VR pose onto a local bot", false,
+                "Local prototype only. Requires a player respawn to change. Never targets human players.", "Bot pose test (restart required)");
 #endif
 
             BindHeader("Input");
@@ -135,6 +144,14 @@ namespace GTFO_VR.Core
             configUseVisualHammerIndicator = BindBool(file, "Misc", "Show light for melee weapon charge?", true, "If true, will show a light indicator when hammer is half/fully charged", "Flash on 50%/100% charge");
             configUseOldHammer = BindBool(file, "Misc", "Use old melee weapon swing?", false, "If true, will use the in-game system for melee that uses animations and moves by itself.", "(OLD) Auto-swing melee");
 
+            BindHeader("VR Sync");
+            configVRSyncP2P = BindBool(file, "VR Sync", "Sync your VR pose with other players?", true,
+                "Shares upper-body poses with compatible VR peers. Unmodded peers receive only discovery beacons, which may produce an unknown-packet entry in their game log.",
+                "VR pose sync (P2P)");
+            configVRSyncPoseRate = BindFloat(file, "VR Sync", "VR pose send rate (Hz)", 20f, 5f, 60f,
+                "How often your VR pose is sent to VR-modded players", "Pose rate (Hz)");
+            configVRSyncBeaconCadence = BindFloat(file, "VR Sync", "VR capability beacon interval (s)", 3f, 0.5f, 10f,
+                "How often a short signal is sent so peers can discover that you run VR pose sync", "Beacon interval (s)");
 
             BindHeader("Rendering");
 

@@ -5,6 +5,7 @@ using GTFO_VR.Core.UI;
 using GTFO_VR.Core.UI.Terminal.Pointer;
 using GTFO_VR.Core.UI.Terminal;
 using GTFO_VR.Core.VR_Input;
+using GTFO_VR.Core.VRSync;
 using GTFO_VR.Detours;
 using GTFO_VR.UI;
 using HarmonyLib;
@@ -58,6 +59,9 @@ namespace GTFO_VR.Core
 
             Harmony harmony = new Harmony("com.github.dsprtn.gtfovr");
             harmony.PatchAll();
+            Core.Log.Info($"VRSyncNet: hooks receive={Harmony.GetPatchInfo(AccessTools.Method(typeof(SNetwork.SNet_Replication), "RecieveBytes"))?.Owners.Contains(harmony.Id)} " +
+                $"solver={Harmony.GetPatchInfo(AccessTools.Method(typeof(RootMotion.SolverManager), "LateUpdate"))?.Owners.Contains(harmony.Id)} " +
+                $"build={typeof(VRSyncNet).Assembly.ManifestModule.ModuleVersionId}");
         }
 
         private void SetupIL2CPPClassInjections()
@@ -86,6 +90,9 @@ namespace GTFO_VR.Core
             ClassInjector.RegisterTypeInIl2Cpp<RadialItem>();
             ClassInjector.RegisterTypeInIl2Cpp<WeaponRadialMenu>();
             ClassInjector.RegisterTypeInIl2Cpp<WeaponAmmoHologram>();
+#if DEBUG_GTFO_VR
+            ClassInjector.RegisterTypeInIl2Cpp<VRSyncLocalTest>();
+#endif
 
             ClassInjector.RegisterTypeInIl2Cpp<MonoPointerEvent>();
             ClassInjector.RegisterTypeInIl2Cpp<RoundedCubeBackground>();       

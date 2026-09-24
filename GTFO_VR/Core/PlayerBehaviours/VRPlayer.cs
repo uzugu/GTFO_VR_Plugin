@@ -1,5 +1,6 @@
 ﻿using GTFO_VR.Core.UI;
 using GTFO_VR.Core.VR_Input;
+using GTFO_VR.Core.VRSync;
 using GTFO_VR.Core.PlayerBehaviours.BodyHaptics;
 using GTFO_VR.Events;
 using GTFO_VR.UI;
@@ -79,6 +80,12 @@ namespace GTFO_VR.Core.PlayerBehaviours
             BodyHapticsIntegrator bodyHapticsIntegrator = gameObject.AddComponent<BodyHapticsIntegrator>();
             bodyHapticsIntegrator.Setup(agent);
 
+            VRSyncData.Reset();
+#if DEBUG_GTFO_VR
+            if (VRConfig.configVRSyncLocalTest.Value)
+                gameObject.AddComponent<VRSyncLocalTest>();
+#endif
+
             PlayerLocomotionEvents.OnPlayerEnterLadder += PlayerEnteredLadder;
             SteamVR_Events.NewPosesApplied.Listen(new Action(OnNewPoses));
 
@@ -112,6 +119,7 @@ namespace GTFO_VR.Core.PlayerBehaviours
             {
                 m_weaponAmmoHolo.UpdateTransform();
             }
+            VRSyncData.Sample();
             //UpdateHandIK();
         }
 
@@ -218,6 +226,8 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void OnDestroy()
         {
+            VRSyncData.Reset();
+            VRSyncNet.Reset("local player destroyed");
             PlayerLocomotionEvents.OnPlayerEnterLadder -= PlayerEnteredLadder;
             SteamVR_Events.NewPosesApplied.Remove(OnNewPoses);
 
