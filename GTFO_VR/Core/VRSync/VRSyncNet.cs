@@ -27,13 +27,20 @@ namespace GTFO_VR.Core.VRSync
             public string Status;
         }
 
-        private const float PoseTimeout = 0.75f, PeerTimeout = 30f, DiagnosticInterval = 5f;
+        private const float PoseTimeout = 0.75f, PeerTimeout = 30f;
+        private const float ErrorLogInterval = 5f;
+#if DEBUG_GTFO_VR
+        private const float DiagnosticInterval = 5f;
+#endif
         private static readonly Dictionary<ulong, Peer> Peers = new Dictionary<ulong, Peer>();
         private static readonly List<ulong> Dead = new List<ulong>();
         private static ulong m_stream = (ulong)DateTime.UtcNow.Ticks;
         private static uint m_sequence;
         private static int m_applyFrame = -1;
-        private static float m_lastBeacon = float.NegativeInfinity, m_lastSend, m_lastDiag, m_lastError = float.NegativeInfinity;
+        private static float m_lastBeacon = float.NegativeInfinity, m_lastSend, m_lastError = float.NegativeInfinity;
+#if DEBUG_GTFO_VR
+        private static float m_lastDiag;
+#endif
         private static bool m_running, m_sending;
         private static long m_tx, m_beacons, m_rejected;
 
@@ -109,7 +116,7 @@ namespace GTFO_VR.Core.VRSync
         public static void Reject(ulong id, string reason)
         {
             m_rejected++;
-            if (Time.unscaledTime - m_lastError < DiagnosticInterval) return;
+            if (Time.unscaledTime - m_lastError < ErrorLogInterval) return;
             m_lastError = Time.unscaledTime;
             Log.Warning($"VRSyncNet: rejected peer={id}: {reason} (total={m_rejected})");
         }
@@ -132,7 +139,7 @@ namespace GTFO_VR.Core.VRSync
                 m_running = true;
                 Log.Info($"VRSyncNet: start protocol={VRSyncNetPayload.Version} payload={VRSyncNetPayload.VRPoseSize} " +
                     $"stream={m_stream} local={VRPlayer.PlayerAgent.Owner?.Lookup} " +
-                    $"rate={VRConfig.configVRSyncPoseRate.Value}Hz timeout={PoseTimeout}s botTest={VRConfig.configVRSyncLocalTest.Value}");
+                    $"rate={VRConfig.configVRSyncPoseRate.Value}Hz timeout={PoseTimeout}s");
             }
             float now = Time.unscaledTime;
             Dead.Clear();
@@ -204,27 +211,21 @@ namespace GTFO_VR.Core.VRSync
                 m_lastSend = now;
                 SendToPeers(VRSyncNetPayload.MsgPose, pose);
             }
+#if DEBUG_GTFO_VR
             if (now - m_lastDiag >= DiagnosticInterval)
             {
                 m_lastDiag = now;
                 Log.Info($"VRSyncNet DIAG: frame={Time.frameCount} focus={FocusStateEvents.currentState} " +
                     $"active={active} peers={Peers.Count} tx={m_tx} beaconTx={m_beacons} rejected={m_rejected} " +
-                    $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} sampleAge={now - VRSyncData.LastSampleTime:F3}s " +
-                    $"leftHanded={VRConfig.configUseLeftHand.Value} sourceItemScale={VRSyncData.HeldItemScale} " +
-                    $"sourceItemForward={VRSyncData.HeldItemForward} sourceAimForward={VRSyncData.HeldItemAimForward} " +
-                    $"sourceItemAimErrorDeg={VRSyncData.HeldItemAimError:F1} " +
-                    $"sourceItemBasisHandedness={VRSyncData.HeldItemBasisHandedness:F3} " +
-                    $"sourceItemRotationBasisErrorDeg={VRSyncData.HeldItemRotationBasisError:F1}");
-                foreach (PlayerAgent agent in PlayerManager.PlayerAgentsInLevel)
-                    if (agent && agent.Owner != null)
-                        Log.Info($"VRSyncNet ROSTER: owner={agent.Owner.Lookup} local={agent.IsLocallyOwned} " +
-                            $"bot={agent.Owner.IsBot} inGame={agent.Owner.IsInGame} state={agent.Locomotion?.m_currentStateEnum}");
+                    $"sampleAge={now - VRSyncData.LastSampleTime:F3}s " +
+                    $"leftHanded={VRConfig.configUseLeftHand.Value}");
                 foreach (var entry in Peers)
                     Log.Info($"VRSyncNet PEER: id={entry.Key} state={entry.Value.Status} rx={entry.Value.Received} " +
                         $"old={entry.Value.Old} applied={entry.Value.Applied} seq={entry.Value.Sequence} " +
                         $"poseAge={now - entry.Value.LastPose:F3}s maxGap={entry.Value.MaxGap:F3}s " +
                         entry.Value.Applier?.Diagnostics());
             }
+#endif
         }
 
         private static PlayerAgent FindAgent(ulong id)

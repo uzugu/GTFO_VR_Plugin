@@ -42,7 +42,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void PreRenderUpdate()
         {
+#if DEBUG_GTFO_VR
             VRSync.VRSyncLocalTest.FinalizePoseBeforeRender();
+#endif
             VRSync.VRSyncNet.FinalizeBeforeRender();
             if (m_fpsCamera.m_owner == null || m_fpsCamera.m_holder == null)
                 return;

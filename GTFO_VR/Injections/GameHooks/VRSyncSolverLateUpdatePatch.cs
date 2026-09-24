@@ -21,18 +21,19 @@ namespace GTFO_VR.Injections.GameHooks
     [HarmonyPatch(typeof(SolverManager), "LateUpdate")]
     internal class VRSyncSolverLateUpdatePatch
     {
-        public static int FiredCount;
-
         private static void Prefix()
         {
-            FiredCount++;
+#if DEBUG_GTFO_VR
             VRSyncLocalTest.ApplyPoseBeforeSolvers();
+#endif
             VRSyncNet.ApplyBeforeSolvers();
         }
 
         private static void Postfix(SolverManager __instance)
         {
+#if DEBUG_GTFO_VR
             VRSyncLocalTest.ObserveSolver(__instance);
+#endif
             VRSyncNet.ObserveSolver(__instance);
         }
     }

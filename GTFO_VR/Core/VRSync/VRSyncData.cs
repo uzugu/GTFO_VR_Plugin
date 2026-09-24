@@ -68,12 +68,6 @@ namespace GTFO_VR.Core.VRSync
         // the hands and head — so it lands in the mirrored hand.
         public static Vector3 HeldItemPos;
         public static Quaternion HeldItemRot;
-        public static Vector3 HeldItemScale;
-        public static Vector3 HeldItemForward;
-        public static Vector3 HeldItemAimForward;
-        public static float HeldItemBasisHandedness;
-        public static float HeldItemRotationBasisError;
-        public static float HeldItemAimError;
         public static string HeldItemName;   // item.PublicName (specific, e.g. "SANTONIAN HDH")
         public static Player.InventorySlot HeldItemSlot; // item's inventory slot (slot-based receiver logic)
         public static bool HasHeldItem;
@@ -98,12 +92,6 @@ namespace GTFO_VR.Core.VRSync
         {
             HasPose = false;
             HasHeldItem = false;
-            HeldItemScale = Vector3.zero;
-            HeldItemForward = Vector3.zero;
-            HeldItemAimForward = Vector3.zero;
-            HeldItemBasisHandedness = 0f;
-            HeldItemRotationBasisError = 0f;
-            HeldItemAimError = 0f;
             m_hasBodyYaw = false;
             LastSampleTime = float.NegativeInfinity;
         }
@@ -299,20 +287,12 @@ namespace GTFO_VR.Core.VRSync
                 // weapon into a different rotation when reproduced on the unmirrored
                 // third-person model.
                 Matrix4x4 itemMatrix = heldItem.transform.localToWorldMatrix;
-                Vector3 itemRight = itemMatrix.MultiplyVector(Vector3.right).normalized;
                 Vector3 itemUp = itemMatrix.MultiplyVector(Vector3.up).normalized;
                 Vector3 itemForward = itemMatrix.MultiplyVector(Vector3.forward).normalized;
                 Quaternion renderedItemRotation = Quaternion.LookRotation(itemForward, itemUp);
-                Vector3 aimForward = Controllers.GetControllerAimRotation() * Vector3.forward;
 
                 HeldItemPos = bodyYawInv * (heldItem.transform.position - feet) - BodyPos;
                 HeldItemRot = bodyYawInv * renderedItemRotation;
-                HeldItemScale = heldItem.transform.lossyScale;
-                HeldItemForward = bodyYawInv * itemForward;
-                HeldItemAimForward = bodyYawInv * aimForward;
-                HeldItemBasisHandedness = Vector3.Dot(Vector3.Cross(itemRight, itemUp), itemForward);
-                HeldItemRotationBasisError = Quaternion.Angle(heldItem.transform.rotation, renderedItemRotation);
-                HeldItemAimError = Vector3.Angle(aimForward, itemForward);
                 HeldItemName = heldItem.PublicName;
                 HeldItemSlot = heldItem.ItemDataBlock != null ? heldItem.ItemDataBlock.inventorySlot : default;
                 HasHeldItem = true;
@@ -320,12 +300,6 @@ namespace GTFO_VR.Core.VRSync
             else
             {
                 HasHeldItem = false;
-                HeldItemScale = Vector3.zero;
-                HeldItemForward = Vector3.zero;
-                HeldItemAimForward = Vector3.zero;
-                HeldItemBasisHandedness = 0f;
-                HeldItemRotationBasisError = 0f;
-                HeldItemAimError = 0f;
             }
 
             // Flags (for future networking); the pose itself does not depend on weapon.

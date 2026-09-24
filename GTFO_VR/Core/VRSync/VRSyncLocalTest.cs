@@ -1,3 +1,4 @@
+#if DEBUG_GTFO_VR
 using GTFO_VR.Core.PlayerBehaviours;
 using GTFO_VR.Core.VR_Input;
 using GTFO_VR.Events;
@@ -17,7 +18,7 @@ namespace GTFO_VR.Core.VRSync
     public class VRSyncLocalTest : MonoBehaviour
     {
         private const float BotModelPositionSmoothTime = 0.1f;
-        private const float DiagnosticInterval = 2f;
+        private const float DiagnosticInterval = 5f;
 
         private static VRSyncLocalTest m_active;
 
@@ -100,19 +101,8 @@ namespace GTFO_VR.Core.VRSync
             if (Time.unscaledTime - m_lastDiagTime >= DiagnosticInterval)
             {
                 m_lastDiagTime = Time.unscaledTime;
-                Vector3 rightOffset = VRSyncData.DebugRightHandPalmOffset;
-                Vector3 leftOffset = VRSyncData.DebugLeftHandPalmOffset;
                 Log.Info($"VRSyncLocalTest DIAG: leftHanded={m_latestPose.LeftHanded} " +
                     $"captureAge={Time.unscaledTime - m_lastPoseCapture:F3}s " +
-                    $"handOffsetR=({rightOffset.x:F3},{rightOffset.y:F3},{rightOffset.z:F3}) " +
-                    $"handOffsetL=({leftOffset.x:F3},{leftOffset.y:F3},{leftOffset.z:F3}) " +
-                    $"sourceItemScale={VRSyncData.HeldItemScale} " +
-                    $"sourceItemForward={VRSyncData.HeldItemForward} sourceAimForward={VRSyncData.HeldItemAimForward} " +
-                    $"sourceItemAimErrorDeg={VRSyncData.HeldItemAimError:F1} " +
-                    $"sourceItemBasisHandedness={VRSyncData.HeldItemBasisHandedness:F3} " +
-                    $"sourceItemRotationBasisErrorDeg={VRSyncData.HeldItemRotationBasisError:F1} " +
-                    $"primaryFired={VRSyncSyncIKAimUpdatePatch.FiredCount} " +
-                    $"solverHooks={VRSyncSolverLateUpdatePatch.FiredCount} " +
                     m_applier.Diagnostics());
             }
         }
@@ -305,3 +295,4 @@ namespace GTFO_VR.Core.VRSync
         }
     }
 }
+#endif

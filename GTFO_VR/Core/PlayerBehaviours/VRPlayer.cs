@@ -81,8 +81,10 @@ namespace GTFO_VR.Core.PlayerBehaviours
             bodyHapticsIntegrator.Setup(agent);
 
             VRSyncData.Reset();
+#if DEBUG_GTFO_VR
             if (VRConfig.configVRSyncLocalTest.Value)
                 gameObject.AddComponent<VRSyncLocalTest>();
+#endif
 
             PlayerLocomotionEvents.OnPlayerEnterLadder += PlayerEnteredLadder;
             SteamVR_Events.NewPosesApplied.Listen(new Action(OnNewPoses));

@@ -49,10 +49,6 @@ namespace GTFO_VR.Core.VRSync
         // LookAtIK only aligns the head's forward (a shortest-arc), so it can yaw+pitch
         // but never roll; we own the head rotation to get full pitch + roll.
         private Transform m_headBone;
-        // The model NECK bone — the head's rotation pivot / diagnostics reference.
-        private Transform m_neckBone;
-        private Transform m_rightThumbBone, m_rightIndexBone, m_rightLittleBone;
-        private Transform m_leftThumbBone, m_leftIndexBone, m_leftLittleBone;
         // Calibration offset on top of the received head rotation. Identity by default.
         private Quaternion m_headRotOffset = Quaternion.identity;
         // The game's full-crouch head drop (camPosDefault.y - camPosCrouch.y), used to
@@ -106,21 +102,11 @@ namespace GTFO_VR.Core.VRSync
         private Quaternion m_spineBefore, m_spineAfter, m_headBefore, m_headAfter;
         private bool m_bonesApplied, m_hasSmoothedPose;
         private pVRPose m_smoothedPose;
-        private long m_rightSolves, m_leftSolves;
-        private float m_rightError = -1f, m_leftError = -1f, m_headError = -1f;
         private int m_lastApplyFrame = -1, m_rightSolveFrame = -1, m_leftSolveFrame = -1;
-        private long m_postSolverCorrections;
-        private string m_lastDisplacingSolver = "none";
-        private float m_postSolverPreRightError = -1f, m_postSolverPreLeftError = -1f;
-        private float m_postSolverRightError = -1f, m_postSolverLeftError = -1f;
-        private float m_rightUpperLength, m_rightLowerLength, m_leftUpperLength, m_leftLowerLength;
-        private string m_itemStatus;
-        private long m_renderSamples;
         private int m_lastRenderFinalizeFrame = -1;
-        private float m_preRenderRightError = -1f, m_preRenderLeftError = -1f;
-        private float m_renderRightError = -1f, m_renderLeftError = -1f, m_renderHeadError = -1f;
-        private float m_renderItemError = -1f, m_renderItemRotationError = -1f;
+#if DEBUG_GTFO_VR
         private readonly string m_logContext;
+#endif
         private bool m_wasGameHandAnimation;
         private string m_handAnimationReason = "none";
 
@@ -147,7 +133,9 @@ namespace GTFO_VR.Core.VRSync
             Agent = agent;
             SenderID = senderID;
             m_modelPosSmoothTime = modelPositionSmoothTime;
+#if DEBUG_GTFO_VR
             m_logContext = logContext ?? $"VRSyncNet: peer={senderID}";
+#endif
         }
 
         /// <summary>
@@ -212,26 +200,12 @@ namespace GTFO_VR.Core.VRSync
             {
                 m_headBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.Head);
             }
-            m_neckBone = Agent.PlayerSyncModel.m_neckBone;
-            if (m_neckBone == null && Agent.AnimatorBody != null
-                && Agent.AnimatorBody.isHuman)
-            {
-                m_neckBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.Neck);
-            }
-            if (Agent.AnimatorBody != null && Agent.AnimatorBody.isHuman)
-            {
-                m_rightThumbBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.RightThumbProximal);
-                m_rightIndexBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.RightIndexProximal);
-                m_rightLittleBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.RightLittleProximal);
-                m_leftThumbBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.LeftThumbProximal);
-                m_leftIndexBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.LeftIndexProximal);
-                m_leftLittleBone = Agent.AnimatorBody.GetBoneTransform(HumanBodyBones.LeftLittleProximal);
-            }
+#if DEBUG_GTFO_VR
             Log.Info($"VRSyncPoseApplier: {Agent.gameObject.name} " +
                      $"head={(m_headBone != null ? m_headBone.name : "<none>")} " +
-                     $"neck={(m_neckBone != null ? m_neckBone.name : "<none>")} " +
                      $"spine={(m_spineBone != null ? m_spineBone.name : "<none>")} " +
                      $"camStandY={m_camPosDefaultY:F2} crouchDrop={m_crouchHeadDrop:F2}");
+#endif
 
             // The right arm IK needs special handling: PlayerSyncIK.Setup() zeroes its
             // position weight, PLOC_Stand.SyncEnter zeroes it again on every state
@@ -240,15 +214,6 @@ namespace GTFO_VR.Core.VRSync
             m_hasRightArmIK = Agent.SyncIK.m_rightArmIK != null;
             if (m_hasRightArmIK)
                 Agent.SyncIK.m_rightArmIK.enabled = true;
-
-            m_rightUpperLength = Vector3.Distance(m_ik.m_rightArmIK.solver.bone1.transform.position,
-                m_ik.m_rightArmIK.solver.bone2.transform.position);
-            m_rightLowerLength = Vector3.Distance(m_ik.m_rightArmIK.solver.bone2.transform.position,
-                m_ik.m_rightArmIK.solver.bone3.transform.position);
-            m_leftUpperLength = Vector3.Distance(m_ik.m_leftArmIK.solver.bone1.transform.position,
-                m_ik.m_leftArmIK.solver.bone2.transform.position);
-            m_leftLowerLength = Vector3.Distance(m_ik.m_leftArmIK.solver.bone2.transform.position,
-                m_ik.m_leftArmIK.solver.bone3.transform.position);
 
             if (!Agent.SyncIK.IsEnabled())
                 Agent.SyncIK.SoftEnable();
@@ -461,12 +426,16 @@ namespace GTFO_VR.Core.VRSync
             {
                 ReleaseWeapon(true);
                 ReleaseHandsToGame();
-                Log.Info($"{m_logContext} handoff=game reason={reason}");
+#if DEBUG_GTFO_VR
+                Log.Debug($"{m_logContext} handoff=game reason={reason}");
+#endif
             }
             else if (!gameHandAnimation && m_wasGameHandAnimation)
             {
                 ClearAnimatedWeapon();
-                Log.Info($"{m_logContext} handoff=vr reason={m_handAnimationReason}");
+#if DEBUG_GTFO_VR
+                Log.Debug($"{m_logContext} handoff=vr reason={m_handAnimationReason}");
+#endif
             }
 
             m_handAnimationReason = gameHandAnimation ? reason : "none";
@@ -532,24 +501,14 @@ namespace GTFO_VR.Core.VRSync
         public void ObserveSolver(SolverManager solver)
         {
             if (!m_ik || !m_ikConfigured) return;
-            if (m_wasGameHandAnimation)
-            {
-                if (m_headBone)
-                    m_headError = Quaternion.Angle(m_headBone.rotation,
-                        m_model.transform.rotation * m_smoothedPose.HeadRot);
-                return;
-            }
+            if (m_wasGameHandAnimation) return;
             if (solver == m_ik.m_rightArmIK)
             {
-                m_rightSolves++;
                 m_rightSolveFrame = Time.frameCount;
-                m_rightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
             }
             else if (solver == m_ik.m_leftArmIK)
             {
-                m_leftSolves++;
                 m_leftSolveFrame = Time.frameCount;
-                m_leftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
             }
             else if (m_lastApplyFrame == Time.frameCount
                 && m_rightSolveFrame == Time.frameCount && m_leftSolveFrame == Time.frameCount)
@@ -557,46 +516,25 @@ namespace GTFO_VR.Core.VRSync
                 float rightError = RightArmError();
                 float leftError = LeftArmError();
                 if (rightError > 0.002f || leftError > 0.002f)
-                {
-                    m_lastDisplacingSolver = $"{solver.GetType().Name}@{solver.gameObject.name}";
-                    m_postSolverPreRightError = rightError;
-                    m_postSolverPreLeftError = leftError;
                     SolveArmsFromFinalBodyPose();
-                    m_postSolverRightError = RightArmError();
-                    m_postSolverLeftError = LeftArmError();
-                    m_postSolverCorrections++;
-                }
             }
-            if (m_headBone)
-                m_headError = Quaternion.Angle(m_headBone.rotation, m_model.transform.rotation * m_smoothedPose.HeadRot);
         }
 
+#if DEBUG_GTFO_VR
         public string Diagnostics()
         {
             if (!Agent || !m_model || !m_ik) return "rig=destroyed";
+            ItemEquippable item = Agent.Inventory != null ? Agent.Inventory.WieldedItem : null;
+            string itemName = item != null ? item.PublicName : "none";
             return $"agent={Agent.GetInstanceID()} state={Agent.Locomotion.m_currentStateEnum} " +
-                $"item={m_itemStatus} flags={LatestPose.Flags} " +
+                $"item={itemName} flags={LatestPose.Flags} " +
                 $"hands={m_handAnimationReason}/{(m_wasGameHandAnimation ? "game" : "vr")} " +
-                $"armSolves={m_rightSolves}/{m_leftSolves} armErrorM={m_rightError:F3}/{m_leftError:F3} " +
                 $"armWeights={m_ik.m_rightArmIK.solver.IKPositionWeight:F2}/{m_ik.m_leftArmIK.solver.IKPositionWeight:F2} " +
                 $"aimWeight={m_ik.m_aimIK.solver.IKPositionWeight:F2} " +
                 AnimatedItemDiagnostics() +
-                $"postSolverFixes={m_postSolverCorrections} displacedBy={m_lastDisplacingSolver} " +
-                $"postSolverArmErrorM={m_postSolverPreRightError:F3}/{m_postSolverPreLeftError:F3}>" +
-                $"{m_postSolverRightError:F3}/{m_postSolverLeftError:F3} " +
-                $"armStretchM={RightArmStretch():F3}/{LeftArmStretch():F3} " +
-                $"reachExcessM={RightReachExcess():F3}/{LeftReachExcess():F3} " +
-                $"headErrorDeg={m_headError:F1} renderSamples={m_renderSamples} " +
-                $"preRenderArmErrorM={m_preRenderRightError:F3}/{m_preRenderLeftError:F3} " +
-                $"renderArmErrorM={m_renderRightError:F3}/{m_renderLeftError:F3} " +
-                $"renderHeadErrorDeg={m_renderHeadError:F1} renderItemErrorM={m_renderItemError:F3} " +
-                $"renderItemRotationErrorDeg={m_renderItemRotationError:F1} " +
                 $"headY={LatestPose.HeadPos.y:F2} crouch={m_crouchBlend:F2} " +
                 $"spine={m_standUpAngle:F1} body={LatestPose.BodyPos} model={m_model.transform.position} " +
-                $"root={Agent.transform.position} headBone={(m_headBone ? m_headBone.position.ToString() : "missing")} " +
-                $"primary={LatestPose.RightHandPos}/{LatestPose.RightHandRot} offhand={LatestPose.LeftHandPos}/{LatestPose.LeftHandRot} " +
-                $"headRot={LatestPose.HeadRot} bodyYaw={LatestPose.BodyYaw} itemPose={LatestPose.HeldItemPos}/{LatestPose.HeldItemRot} " +
-                GripDiagnostics();
+                $"root={Agent.transform.position}";
         }
 
         private string AnimatedItemDiagnostics()
@@ -615,6 +553,7 @@ namespace GTFO_VR.Core.VRSync
             return $"animItem={item.PublicName}/parent={parent}/local={itemTransform.localPosition}" +
                 $"/modelLocal={modelLocal} ";
         }
+#endif
 
         // Full-body/grounding IK can move the shoulder chain after the individual arm
         // solvers have already reached their targets. Both live-test logs showed the
@@ -626,41 +565,26 @@ namespace GTFO_VR.Core.VRSync
             if (!m_ikConfigured || !m_ik || !m_model) return;
             if (m_lastRenderFinalizeFrame == Time.frameCount) return;
             m_lastRenderFinalizeFrame = Time.frameCount;
-            m_renderSamples++;
 
             if (m_wasGameHandAnimation)
             {
-                m_preRenderRightError = m_preRenderLeftError = -1f;
-                m_renderRightError = m_renderLeftError = m_renderItemError = m_renderItemRotationError = -1f;
                 if (m_headBone)
                 {
                     // Full-body/grounding solvers may still move the neck after ApplyPose.
                     // We released only the arms/item, so keep head tracking authoritative.
                     ApplyHeadRotation(m_smoothedPose);
-                    m_renderHeadError = Quaternion.Angle(m_headBone.rotation,
-                        m_smoothedPose.BodyYaw * m_smoothedPose.HeadRot);
                 }
                 return;
             }
 
-            m_preRenderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
-            m_preRenderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
+            float rightError = RightArmError();
+            float leftError = LeftArmError();
 
             // The solver postfix normally corrects any later full-body/grounding move.
             // Keep this as a fallback for non-SolverManager writes between LateUpdate and
             // rendering, but avoid a redundant late solve when the chain is already exact.
-            if (m_preRenderRightError > 0.002f || m_preRenderLeftError > 0.002f)
+            if (rightError > 0.002f || leftError > 0.002f)
                 SolveArmsFromFinalBodyPose();
-
-            m_renderRightError = Vector3.Distance(m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
-            m_renderLeftError = Vector3.Distance(m_ik.m_leftArmIK.solver.bone3.transform.position, m_leftArmTarget.position);
-            if (m_headBone)
-                m_renderHeadError = Quaternion.Angle(m_headBone.rotation, m_smoothedPose.BodyYaw * m_smoothedPose.HeadRot);
-            m_renderItemError = m_botWeapon
-                ? Vector3.Distance(m_botWeapon.transform.position, m_model.transform.TransformPoint(m_smoothedPose.HeldItemPos)) : -1f;
-            m_renderItemRotationError = m_botWeapon
-                ? Quaternion.Angle(m_botWeapon.transform.rotation,
-                    m_model.transform.rotation * m_smoothedPose.HeldItemRot) : -1f;
         }
 
         /// <summary>
@@ -794,16 +718,6 @@ namespace GTFO_VR.Core.VRSync
         private void PlaceOrReleaseWeapon(pVRPose p)
         {
             ItemEquippable agentWeapon = Agent.Inventory != null ? Agent.Inventory.WieldedItem : null;
-            string itemParent = agentWeapon != null && agentWeapon.transform.parent != null
-                ? agentWeapon.transform.parent.name : "none";
-            string itemStatus = agentWeapon == null ? "none" :
-                $"{agentWeapon.PublicName}/slot={Agent.Inventory.WieldedSlot}/wire={p.HeldItemSlot}" +
-                $"/parent={itemParent}";
-            if (m_itemStatus != itemStatus)
-            {
-                m_itemStatus = itemStatus;
-                Log.Info($"{m_logContext} item={itemStatus}");
-            }
             if (agentWeapon == null || !p.HasHeldItem || (int)Agent.Inventory.WieldedSlot != p.HeldItemSlot)
             {
                 // Nothing to mirror: return the weapon to its normal grip hold.
@@ -913,53 +827,6 @@ namespace GTFO_VR.Core.VRSync
             rot = Quaternion.Inverse(modelT.rotation) * itemT.rotation * gripLocalRot;
         }
 
-        private string GripDiagnostics()
-        {
-            if (!m_botWeapon || !m_model || !m_ik)
-                return "gripDiag=none";
-
-            Transform item = m_botWeapon.transform;
-            Transform rightWrist = m_ik.m_rightArmIK.solver.bone3.transform;
-            Transform leftWrist = m_ik.m_leftArmIK.solver.bone3.transform;
-            Vector3 rightPalm = PalmCenter(rightWrist, m_rightThumbBone, m_rightIndexBone, m_rightLittleBone);
-            Vector3 leftPalm = PalmCenter(leftWrist, m_leftThumbBone, m_leftIndexBone, m_leftLittleBone);
-
-            return $"gripDiag=" +
-                $"itemScale={item.lossyScale} " +
-                $"gripP={LocalPoint(item, m_botWeapon.RightHandGripTrans)} " +
-                $"gripS={LocalPoint(item, m_botWeapon.LeftHandGripTrans)} " +
-                $"targetR={Fmt(item.InverseTransformPoint(m_rightArmTarget.position))}/" +
-                $"{Fmt(Quaternion.Inverse(item.rotation) * m_rightArmTarget.rotation)} " +
-                $"targetL={Fmt(item.InverseTransformPoint(m_leftArmTarget.position))}/" +
-                $"{Fmt(Quaternion.Inverse(item.rotation) * m_leftArmTarget.rotation)} " +
-                $"wristR={Fmt(item.InverseTransformPoint(rightWrist.position))}/" +
-                $"{Fmt(Quaternion.Inverse(item.rotation) * rightWrist.rotation)} " +
-                $"wristL={Fmt(item.InverseTransformPoint(leftWrist.position))}/" +
-                $"{Fmt(Quaternion.Inverse(item.rotation) * leftWrist.rotation)} " +
-                $"palmR={Fmt(item.InverseTransformPoint(rightPalm))} " +
-                $"palmL={Fmt(item.InverseTransformPoint(leftPalm))} " +
-                $"itemInHandR={Fmt(rightWrist.InverseTransformPoint(item.position))}/" +
-                $"{Fmt(Quaternion.Inverse(rightWrist.rotation) * item.rotation)} " +
-                $"itemInHandL={Fmt(leftWrist.InverseTransformPoint(item.position))}/" +
-                $"{Fmt(Quaternion.Inverse(leftWrist.rotation) * item.rotation)}";
-        }
-
-        private static Vector3 PalmCenter(Transform wrist, Transform thumb, Transform index, Transform little)
-        {
-            if (thumb && index && little)
-                return (thumb.position + index.position + little.position) / 3f;
-            return wrist.position;
-        }
-
-        private static string LocalPoint(Transform frame, Transform point) =>
-            point ? Fmt(frame.InverseTransformPoint(point.position)) : "missing";
-
-        private static string Fmt(Vector3 value) =>
-            $"({value.x:F4},{value.y:F4},{value.z:F4})";
-
-        private static string Fmt(Quaternion value) =>
-            $"({value.x:F4},{value.y:F4},{value.z:F4},{value.w:F4})";
-
         private float RightArmError() => Vector3.Distance(
             m_ik.m_rightArmIK.solver.bone3.transform.position, m_rightArmTarget.position);
 
@@ -977,26 +844,6 @@ namespace GTFO_VR.Core.VRSync
             ApplyHeadRotation(m_smoothedPose);
         }
 
-        private float RightArmStretch() =>
-            Vector3.Distance(m_ik.m_rightArmIK.solver.bone1.transform.position,
-                m_ik.m_rightArmIK.solver.bone2.transform.position) - m_rightUpperLength
-            + Vector3.Distance(m_ik.m_rightArmIK.solver.bone2.transform.position,
-                m_ik.m_rightArmIK.solver.bone3.transform.position) - m_rightLowerLength;
-
-        private float LeftArmStretch() =>
-            Vector3.Distance(m_ik.m_leftArmIK.solver.bone1.transform.position,
-                m_ik.m_leftArmIK.solver.bone2.transform.position) - m_leftUpperLength
-            + Vector3.Distance(m_ik.m_leftArmIK.solver.bone2.transform.position,
-                m_ik.m_leftArmIK.solver.bone3.transform.position) - m_leftLowerLength;
-
-        private float RightReachExcess() => Vector3.Distance(
-            m_ik.m_rightArmIK.solver.bone1.transform.position, m_rightArmTarget.position)
-            - m_rightUpperLength - m_rightLowerLength;
-
-        private float LeftReachExcess() => Vector3.Distance(
-            m_ik.m_leftArmIK.solver.bone1.transform.position, m_leftArmTarget.position)
-            - m_leftUpperLength - m_leftLowerLength;
-
         /// <summary>
         /// Return the driven weapon to the game's grip anchor + local transform so the
         /// agent holds it normally again. Safe no-op if nothing is currently driven.
@@ -1006,7 +853,9 @@ namespace GTFO_VR.Core.VRSync
             if (m_botWeapon != null && m_botWeaponOriginalParent != null && m_model)
             {
                 Transform item = m_botWeapon.transform;
+#if DEBUG_GTFO_VR
                 Vector3 badLocal = item.localPosition;
+#endif
 
                 // Only undo a hierarchy we still own. During an equip transition the
                 // game may already have moved the old item to its backpack attachment.
@@ -1027,9 +876,11 @@ namespace GTFO_VR.Core.VRSync
                     m_animatedWeaponLocalScale = m_botWeaponOriginalLocalScale;
                 }
 
+#if DEBUG_GTFO_VR
                 string parentName = item.parent != null ? item.parent.name : "none";
-                Log.Info($"{m_logContext} itemRelease parent={parentName} " +
+                Log.Debug($"{m_logContext} itemRelease parent={parentName} " +
                     $"local={badLocal}>{item.localPosition} animation={preserveForAnimation}");
+#endif
             }
             m_botWeapon = null;
             m_botWeaponOriginalParent = null;

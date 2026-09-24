@@ -90,7 +90,9 @@ namespace GTFO_VR.Core
             ClassInjector.RegisterTypeInIl2Cpp<RadialItem>();
             ClassInjector.RegisterTypeInIl2Cpp<WeaponRadialMenu>();
             ClassInjector.RegisterTypeInIl2Cpp<WeaponAmmoHologram>();
+#if DEBUG_GTFO_VR
             ClassInjector.RegisterTypeInIl2Cpp<VRSyncLocalTest>();
+#endif
 
             ClassInjector.RegisterTypeInIl2Cpp<MonoPointerEvent>();
             ClassInjector.RegisterTypeInIl2Cpp<RoundedCubeBackground>();       
