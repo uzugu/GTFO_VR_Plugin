@@ -44,8 +44,11 @@ namespace GTFO_VR.Core.PlayerBehaviours
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
                 bool hitEnemy = dmg > 0.01f;
-                PSVR2HapticsManager.TriggerMeleeImpact(dmg, hitEnemy);
-                return;
+                // The PSVR2 thud replaces the SteamVR pulse; without controller PCM the pulse still plays.
+                if (PSVR2HapticsManager.TriggerMeleeImpact(dmg, hitEnemy))
+                {
+                    return;
+                }
             }
 
             if (!VRConfig.configUseWeaponHaptics.Value)
@@ -66,21 +69,23 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void HammerChargingHaptics(float pressure)
         {
-            // PSVR2: Use progressive trigger resistance for weapon charging
+            // PSVR2: rising trigger resistance plus a PCM charge hum for charge-up weapons.
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
                 var currentItem = ItemEquippableEvents.currentItem;
 
-                // Only apply charging resistance to shootable weapons (special charge weapons)
-                // Hammers already have their constant resistance profile applied
-                if (currentItem != null && ItemEquippableEvents.IsItemShootableWeapon(currentItem))
+                // Only shootable weapons charge this way; hammers keep their profile and the SteamVR pulses.
+                // When the PCM hum plays it replaces the SteamVR charge pulses, which the Toolkit would
+                // otherwise also turn into controller PCM and blur the hum.
+                if (currentItem != null &&
+                    ItemEquippableEvents.IsItemShootableWeapon(currentItem) &&
+                    PSVR2HapticsManager.TriggerWeaponCharging(pressure))
                 {
-                    PSVR2HapticsManager.TriggerWeaponCharging(pressure);
+                    return;
                 }
-                // Don't return - let SteamVR haptics play alongside PSVR2
             }
 
-            // SteamVR haptics for charging (plays alongside PSVR2 for richer feedback)
+            // SteamVR charge pulses: hammers, and charge-up weapons when no PSVR2 controller PCM is available.
             if (!VRConfig.configUseWeaponHaptics.Value)
             {
                 return;
@@ -173,9 +178,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void PlayReceiveDamageHaptics(float dmg, Vector3 direction)
         {
-            if (VRConfig.configUsePSVR2Haptics.Value)
+            // The PSVR2 controller hit replaces the SteamVR pulses; without controller PCM they still play.
+            if (VRConfig.configUsePSVR2Haptics.Value && PSVR2HapticsManager.TriggerDamageFeedback(dmg))
             {
-                PSVR2HapticsManager.TriggerDamageFeedback(dmg);
                 return;
             }
 
