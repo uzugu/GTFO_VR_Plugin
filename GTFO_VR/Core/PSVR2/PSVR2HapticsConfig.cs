@@ -58,6 +58,27 @@ namespace GTFO_VR.Core.PSVR2
             "psvr2_haptics_fe3_experimental.json"
         };
         private const string PSVR2_FOLDER_NAME = "PSVR2Haptics";
+
+        // Fields from the per-weapon trigger-shape era. PSVR2HapticsManager's adaptive trigger tuning now
+        // decides the trigger shape and the recoil sequence, so these are parsed but have no effect.
+        private static readonly HashSet<string> LEGACY_FIELDS = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase)
+        {
+            "startPosition",
+            "endPosition",
+            "slopeStartStrength",
+            "slopeEndStrength",
+            "feedbackPosition",
+            "feedbackStrength",
+            "multiPositionFeedback",
+            "multiPositionVibrationFrequency",
+            "multiPositionVibration",
+            "fireVibrationPosition",
+            "fireFrequency",
+            "disableTriggerOnFire",
+            "restoreTriggerAfterFire",
+            "firePattern"
+        };
+
         private static readonly object _sync = new object();
         private static Dictionary<string, PSVR2WeaponProfileConfig> _profiles;
         private static bool _loaded;
@@ -135,6 +156,8 @@ namespace GTFO_VR.Core.PSVR2
                     return false;
                 }
 
+                int legacyEntries = 0;
+                var legacyFieldsSeen = new SortedSet<string>(StringComparer.InvariantCultureIgnoreCase);
                 foreach (var kvp in data)
                 {
                     if (string.IsNullOrWhiteSpace(kvp.Key) ||
@@ -143,6 +166,11 @@ namespace GTFO_VR.Core.PSVR2
                         kvp.Value.Type == JTokenType.Null)
                     {
                         continue;
+                    }
+
+                    if (CollectLegacyFields(kvp.Value, legacyFieldsSeen))
+                    {
+                        legacyEntries++;
                     }
 
                     PSVR2WeaponProfileConfig profile;
@@ -172,6 +200,11 @@ namespace GTFO_VR.Core.PSVR2
                 }
 
                 Log.Info($"Loaded PSVR2 trigger profile file '{Path.GetFileName(path)}' ({loadedEntries} entries, {overriddenEntries} override(s)).");
+                if (legacyEntries > 0)
+                {
+                    Log.Info($"PSVR2 trigger profile file '{Path.GetFileName(path)}': {legacyEntries} entries use legacy trigger-shape fields ({string.Join(", ", legacyFieldsSeen)}); the adaptive trigger tuning ignores them. See PSVR2Haptics/README.md.");
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -179,6 +212,37 @@ namespace GTFO_VR.Core.PSVR2
                 Log.Warning($"Failed to load PSVR2 trigger profile file '{Path.GetFileName(path)}': {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// True when the entry uses a legacy field; a triggerMode other than "off"/"none" counts too,
+        /// because the adaptive trigger tuning replaces every other mode.
+        /// </summary>
+        private static bool CollectLegacyFields(JToken entry, ISet<string> legacyFieldsSeen)
+        {
+            if (!(entry is JObject properties))
+            {
+                return false;
+            }
+
+            bool found = false;
+            foreach (var property in properties.Properties())
+            {
+                bool legacy = LEGACY_FIELDS.Contains(property.Name);
+                if (!legacy && property.Name.Equals("triggerMode", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    string mode = property.Value.Type == JTokenType.String ? ((string)property.Value).Trim().ToLowerInvariant() : string.Empty;
+                    legacy = mode != "off" && mode != "none";
+                }
+
+                if (legacy)
+                {
+                    legacyFieldsSeen.Add(property.Name);
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         private static void WriteDefaultFile(string path)
@@ -189,17 +253,15 @@ namespace GTFO_VR.Core.PSVR2
                 {
                     ["DEFAULT"] = new PSVR2WeaponProfileConfig
                     {
-                        StartPosition = 2,
-                        EndPosition = 8,
                         TriggerStrength = 6,
-                        SlopeStartStrength = 3,
-                        SlopeEndStrength = 8,
-                        FireAmplitude = 6,
-                        FireFrequency = 210
+                        FireAmplitude = 5
                     }
                 };
 
-                var json = JsonConvert.SerializeObject(defaults, Formatting.Indented);
+                var json = JsonConvert.SerializeObject(
+                    defaults,
+                    Formatting.Indented,
+                    new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 File.WriteAllText(path, json);
                 Log.Info($"Created default PSVR2 trigger profile config at {path}");

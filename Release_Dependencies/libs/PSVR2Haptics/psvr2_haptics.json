@@ -1,1938 +1,294 @@
 {
+  "_comment_fields": "Read fields: triggerStrength, fireAmplitude, triggerMode \"off\", pcm*, recoilPush*. The adaptive trigger tuning sets the trigger shape. An empty entry still gives a melee weapon or tool a trigger profile. See README.md.",
   "DEFAULT": {
     "triggerStrength": 6,
-    "endPosition": 8,
-    "triggerMode": "slope",
-    "slopeEndStrength": 7,
-    "fireAmplitude": 5,
-    "slopeStartStrength": 3,
-    "fireFrequency": 145,
-    "startPosition": 2
+    "fireAmplitude": 5
   },
-  "KRIEGER 04": {
-    "feedbackPosition": 4,
-    "triggerMode": "feedback",
-    "fireFrequency": 150,
-    "fireAmplitude": 4,
-    "feedbackStrength": 5
+  "KRIEGER O4": {
+    "fireAmplitude": 4
   },
   "D-TEK OPTRON IV": {
-    "feedbackPosition": 3,
-    "triggerMode": "feedback",
-    "fireFrequency": 0,
-    "fireAmplitude": 0,
-    "feedbackStrength": 4
+    "fireAmplitude": 0
   },
   "STALWART FLOW G2": {
-    "fireFrequency": 42,
-    "multiPositionVibrationFrequency": 40,
-    "triggerMode": "multiPositionVibration",
-    "multiPositionVibration": [
-      0,
-      1,
-      2,
-      4,
-      6,
-      7,
-      7,
-      6,
-      4,
-      2
-    ],
     "fireAmplitude": 6
   },
   "SANTONIAN MALLET": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      5,
-      7,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "SANTONIAN HDH": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      5,
-      7,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "MACO GAVEL": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      5,
-      7,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "OMNECO MAUL": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      5,
-      7,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "KOVAC SLEDGEHAMMER": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      5,
-      7,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "MASTABA FIXED BLADE": {
-    "feedbackPosition": 3,
-    "triggerMode": "feedback",
-    "fireFrequency": 0,
-    "fireAmplitude": 0,
-    "feedbackStrength": 4
+    "fireAmplitude": 0
   },
   "WOX COMPACT": {
-    "feedbackPosition": 3,
-    "triggerMode": "feedback",
-    "fireFrequency": 0,
-    "fireAmplitude": 0,
-    "feedbackStrength": 4
+    "fireAmplitude": 0
   },
   "ISOCO STINGER": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      2,
-      4,
-      6,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "MACO DRILLHEAD": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      2,
-      4,
-      6,
-      8,
-      8,
-      7,
-      5
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "KOVAC PEACEKEEPER": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      2,
-      4,
-      6,
-      7,
-      7,
-      5,
-      3
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "ATTROC TITANIUM": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      2,
-      4,
-      6,
-      7,
-      7,
-      5,
-      3
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 0,
     "fireAmplitude": 0
   },
   "SHELLING S49": {
-    "fireFrequency": 200,
-    "multiPositionVibrationFrequency": 48,
-    "triggerMode": "multiPositionVibration",
-    "multiPositionVibration": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      5,
-      4,
-      3,
-      2
-    ],
     "fireAmplitude": 4
   },
   "SHELLING NANO": {
-    "fireFrequency": 215,
-    "multiPositionVibrationFrequency": 54,
-    "triggerMode": "multiPositionVibration",
-    "multiPositionVibration": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      5,
-      4,
-      3
-    ],
     "fireAmplitude": 4
   },
-  "RAPTUS TREFFEN 2": {
-    "multiPositionFeedback": [
-      0,
-      1,
-      2,
-      4,
-      6,
-      6,
-      5,
-      3,
-      2,
-      1
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 150,
-        "amplitude": 5,
-        "delayMs": 0
-      },
-      {
-        "frequency": 130,
-        "amplitude": 4,
-        "delayMs": 45
-      },
-      {
-        "frequency": 120,
-        "amplitude": 4,
-        "delayMs": 90
-      }
-    ]
-  },
+  "RAPTUS TREFFEN 2": {},
   "RAPTUS STEIGRO": {
-    "feedbackPosition": 4,
-    "triggerMode": "feedback",
-    "fireFrequency": 135,
-    "fireAmplitude": 5,
-    "feedbackStrength": 5
+    "fireAmplitude": 5
   },
-  "BUCKLAND SBS III": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      6,
-      8,
-      8,
-      7,
-      5,
-      2
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 70,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 45,
-        "amplitude": 5,
-        "delayMs": 55
-      },
-      {
-        "frequency": 25,
-        "amplitude": 3,
-        "delayMs": 130
-      }
-    ]
-  },
-  "BATALDO 3RB": {
-    "feedbackPosition": 5,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 100,
-        "amplitude": 7,
-        "delayMs": 0
-      },
-      {
-        "frequency": 65,
-        "amplitude": 5,
-        "delayMs": 55
-      },
-      {
-        "frequency": 35,
-        "amplitude": 3,
-        "delayMs": 130
-      }
-    ],
-    "feedbackStrength": 7
-  },
-  "HEL REVOLVER": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 95,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 50,
-        "amplitude": 5,
-        "delayMs": 70
-      },
-      {
-        "frequency": 28,
-        "amplitude": 3,
-        "delayMs": 150
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "MASTABA R66": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 90,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 48,
-        "amplitude": 5,
-        "delayMs": 65
-      },
-      {
-        "frequency": 26,
-        "amplitude": 3,
-        "delayMs": 145
-      }
-    ],
-    "feedbackStrength": 8
-  },
+  "BUCKLAND SBS III": {},
+  "BATALDO 3RB": {},
+  "HEL REVOLVER": {},
+  "MASTABA R66": {},
   "ACCRAT GOLOK DA": {
-    "feedbackPosition": 4,
-    "triggerMode": "feedback",
-    "fireFrequency": 145,
-    "fireAmplitude": 4,
-    "feedbackStrength": 5
+    "fireAmplitude": 4
   },
   "VAN AUKEN CAB F4": {
-    "multiPositionFeedback": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      5,
-      4,
-      3,
-      2
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 150,
     "fireAmplitude": 5
   },
   "VAN AUKEN LTC5": {
-    "fireFrequency": 180,
-    "multiPositionVibrationFrequency": 46,
-    "triggerMode": "multiPositionVibration",
-    "multiPositionVibration": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      5,
-      4,
-      3,
-      2
-    ],
     "fireAmplitude": 5
   },
   "ACCRAT STB": {
-    "multiPositionFeedback": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      4,
-      4,
-      3,
-      2,
-      1
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 190,
     "fireAmplitude": 4
   },
-  "TR22 HANAWAY": {
-    "feedbackPosition": 5,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 140,
-        "amplitude": 6,
-        "delayMs": 0
-      },
-      {
-        "frequency": 85,
-        "amplitude": 4,
-        "delayMs": 70
-      }
-    ],
-    "feedbackStrength": 7
-  },
-  "HANAWAY PSB": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 95,
-        "amplitude": 7,
-        "delayMs": 0
-      },
-      {
-        "frequency": 52,
-        "amplitude": 5,
-        "delayMs": 85
-      }
-    ],
-    "feedbackStrength": 7
-  },
+  "TR22 HANAWAY": {},
+  "HANAWAY PSB": {},
   "MALATACK LX": {
-    "multiPositionFeedback": [
-      0,
-      1,
-      2,
-      4,
-      6,
-      7,
-      5,
-      3,
-      2,
-      1
-    ],
-    "triggerMode": "multiPosition",
-    "fireFrequency": 165,
     "fireAmplitude": 6
   },
   "MALATACK CH 4": {
-    "feedbackPosition": 5,
-    "triggerMode": "feedback",
-    "fireFrequency": 150,
-    "fireAmplitude": 6,
-    "feedbackStrength": 6
-  },
-  "DREKKER PRES MOD 556": {
-    "multiPositionFeedback": [
-      0,
-      1,
-      2,
-      4,
-      6,
-      6,
-      5,
-      3,
-      2,
-      1
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 155,
-        "amplitude": 5,
-        "delayMs": 0
-      },
-      {
-        "frequency": 135,
-        "amplitude": 4,
-        "delayMs": 45
-      },
-      {
-        "frequency": 120,
-        "amplitude": 4,
-        "delayMs": 90
-      }
-    ]
-  },
-  "BATALDO J 300": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 100,
-        "amplitude": 7,
-        "delayMs": 0
-      },
-      {
-        "frequency": 55,
-        "amplitude": 5,
-        "delayMs": 90
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "MALATACK HXC": {
-    "feedbackPosition": 5,
-    "triggerMode": "feedback",
-    "fireFrequency": 100,
-    "fireAmplitude": 7,
-    "feedbackStrength": 7
-  },
-  "DREKKER CLR": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      2,
-      4,
-      6,
-      7,
-      6,
-      5,
-      3,
-      1
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 95,
-        "amplitude": 6,
-        "delayMs": 0
-      },
-      {
-        "frequency": 55,
-        "amplitude": 4,
-        "delayMs": 70
-      }
-    ]
-  },
-  "BUCKLAND S870": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      1,
-      3,
-      6,
-      8,
-      8,
-      7,
-      5,
-      2
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 72,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 45,
-        "amplitude": 5,
-        "delayMs": 55
-      },
-      {
-        "frequency": 24,
-        "amplitude": 3,
-        "delayMs": 130
-      }
-    ]
-  },
-  "BUCKLAND AF6": {
-    "multiPositionFeedback": [
-      0,
-      1,
-      2,
-      4,
-      6,
-      8,
-      7,
-      6,
-      4,
-      2
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 82,
-        "amplitude": 7,
-        "delayMs": 0
-      },
-      {
-        "frequency": 48,
-        "amplitude": 5,
-        "delayMs": 65
-      }
-    ]
-  },
-  "DREKKER INEX DREI": {
-    "feedbackPosition": 7,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 62,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 34,
-        "amplitude": 6,
-        "delayMs": 90
-      },
-      {
-        "frequency": 18,
-        "amplitude": 4,
-        "delayMs": 180
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "BUCKLAND XDIST2": {
-    "multiPositionFeedback": [
-      0,
-      0,
-      2,
-      5,
-      8,
-      8,
-      8,
-      7,
-      4,
-      2
-    ],
-    "triggerMode": "multiPosition",
-    "firePattern": [
-      {
-        "frequency": 68,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 42,
-        "amplitude": 6,
-        "delayMs": 60
-      },
-      {
-        "frequency": 24,
-        "amplitude": 4,
-        "delayMs": 150
-      }
-    ]
-  },
-  "TECHMAN ARBALIST V": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 120,
-        "amplitude": 7,
-        "delayMs": 0
-      },
-      {
-        "frequency": 72,
-        "amplitude": 5,
-        "delayMs": 75
-      }
-    ],
-    "feedbackStrength": 7
-  },
-  "TECHMAN VERUTA XII": {
-    "fireFrequency": 125,
-    "multiPositionVibrationFrequency": 52,
-    "triggerMode": "multiPositionVibration",
-    "multiPositionVibration": [
-      0,
-      1,
-      2,
-      4,
-      5,
-      7,
-      8,
-      8,
-      7,
-      5
-    ],
     "fireAmplitude": 6
   },
-  "TECHMAN KLAUST 6": {
-    "multiPositionVibrationFrequency": 60,
-    "triggerMode": "multiPositionVibration",
-    "multiPositionVibration": [
-      0,
-      2,
-      4,
-      6,
-      8,
-      8,
-      6,
-      4,
-      2,
-      1
-    ],
-    "firePattern": [
-      {
-        "frequency": 200,
-        "amplitude": 6,
-        "delayMs": 0
-      },
-      {
-        "frequency": 155,
-        "amplitude": 4,
-        "delayMs": 45
-      }
-    ]
+  "DREKKER PRES MOD 556": {},
+  "BATALDO J 300": {},
+  "MALATACK HXC": {
+    "fireAmplitude": 7
   },
-  "OMNECO EXP1": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 30,
-        "amplitude": 4,
-        "delayMs": 0
-      },
-      {
-        "frequency": 50,
-        "amplitude": 4,
-        "delayMs": 60
-      },
-      {
-        "frequency": 70,
-        "amplitude": 5,
-        "delayMs": 90
-      },
-      {
-        "frequency": 150,
-        "amplitude": 7,
-        "delayMs": 200
-      },
-      {
-        "frequency": 180,
-        "amplitude": 8,
-        "delayMs": 220
-      },
-      {
-        "frequency": 100,
-        "amplitude": 6,
-        "delayMs": 260
-      },
-      {
-        "frequency": 60,
-        "amplitude": 4,
-        "delayMs": 290
-      },
-      {
-        "frequency": 40,
-        "amplitude": 4,
-        "delayMs": 320
-      }
-    ],
-    "feedbackStrength": 7
+  "DREKKER CLR": {},
+  "BUCKLAND S870": {},
+  "BUCKLAND AF6": {},
+  "DREKKER INEX DREI": {},
+  "BUCKLAND XDIST2": {},
+  "TECHMAN ARBALIST V": {},
+  "TECHMAN VERUTA XII": {
+    "fireAmplitude": 6
   },
-  "SHELLING ARID 5": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 88,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 44,
-        "amplitude": 5,
-        "delayMs": 70
-      },
-      {
-        "frequency": 24,
-        "amplitude": 3,
-        "delayMs": 150
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "DREKKER DEL P1": {
-    "feedbackPosition": 5,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 120,
-        "amplitude": 6,
-        "delayMs": 0
-      },
-      {
-        "frequency": 60,
-        "amplitude": 4,
-        "delayMs": 85
-      }
-    ],
-    "feedbackStrength": 7
-  },
-  "OMNECO LRG": {
-    "feedbackPosition": 7,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 50,
-        "amplitude": 5,
-        "delayMs": 0
-      },
-      {
-        "frequency": 90,
-        "amplitude": 5,
-        "delayMs": 70
-      },
-      {
-        "frequency": 150,
-        "amplitude": 6,
-        "delayMs": 130
-      },
-      {
-        "frequency": 220,
-        "amplitude": 8,
-        "delayMs": 210
-      },
-      {
-        "frequency": 210,
-        "amplitude": 8,
-        "delayMs": 260
-      },
-      {
-        "frequency": 170,
-        "amplitude": 7,
-        "delayMs": 320
-      },
-      {
-        "frequency": 90,
-        "amplitude": 5,
-        "delayMs": 380
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "BATALDO CUSTOM K330": {
-    "feedbackPosition": 6,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 85,
-        "amplitude": 7,
-        "delayMs": 0
-      },
-      {
-        "frequency": 45,
-        "amplitude": 5,
-        "delayMs": 95
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "KONING PR 11": {
-    "feedbackPosition": 7,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 72,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 30,
-        "amplitude": 5,
-        "delayMs": 100
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "KÖNING PR 11": {
-    "feedbackPosition": 7,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 72,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 30,
-        "amplitude": 5,
-        "delayMs": 100
-      }
-    ],
-    "feedbackStrength": 8
-  },
-  "SNIPER": {
-    "feedbackPosition": 7,
-    "triggerMode": "feedback",
-    "firePattern": [
-      {
-        "frequency": 72,
-        "amplitude": 8,
-        "delayMs": 0
-      },
-      {
-        "frequency": 30,
-        "amplitude": 5,
-        "delayMs": 100
-      }
-    ],
-    "feedbackStrength": 8
-  },
+  "TECHMAN KLAUST 6": {},
+  "OMNECO EXP1": {},
+  "SHELLING ARID 5": {},
+  "DREKKER DEL P1": {},
+  "OMNECO LRG": {},
+  "BATALDO CUSTOM K330": {},
+  "KONING PR 11": {},
+  "KÖNING PR 11": {},
+  "SNIPER": {},
   "_comment_fe2_modded_weapons": "Fatal Experiment 2 Mod Weapons",
   "MASTABA ASCENDED BLADE": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "MASTABA TRANSCENDED BLADE": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "MACHINE STICK": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 4,
-    "slopeStartStrength": 2,
-    "slopeEndStrength": 4,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "_comment_thermonuclear": "Thermonuclear Mod Weapons",
   "GEARMAK B44 ICEBREAKER": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "GEARMAK B43 ARTESIAN": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "GEARMAK GL2 ROYAL": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "_comment_fe3_weapons": "Fatal Experiment 3 Mod Weapons (by ProjectZaero & Dinorush)",
   "BEAM RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 6,
-    "fireFrequency": 200
+    "fireAmplitude": 6
   },
   "BLITZ BEAM RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 4,
-    "fireFrequency": 160
+    "fireAmplitude": 4
   },
   "VOID BEAM RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 5,
-    "fireFrequency": 180
+    "fireAmplitude": 5
   },
   "PURE BEAM RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 6,
-    "fireFrequency": 200
+    "fireAmplitude": 6
   },
   "CARBINE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 5,
-    "fireFrequency": 120
+    "fireAmplitude": 5
   },
   "PURE CARBINE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 6,
-    "fireFrequency": 140
+    "fireAmplitude": 6
   },
   "NANO SMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 4,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 4,
-    "fireAmplitude": 4,
-    "fireFrequency": 200
+    "fireAmplitude": 4
   },
   "BLITZ NANO SMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 5,
-    "fireFrequency": 220
+    "fireAmplitude": 5
   },
   "PURE SPLIT RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 90
+    "fireAmplitude": 8
   },
   "KILL-FEED PISTOL": {
-    "startPosition": 4,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 7,
-    "fireFrequency": 50
+    "fireAmplitude": 7
   },
   "VOID KILL-FEED PISTOL": {
-    "startPosition": 4,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 7,
-    "fireFrequency": 60,
-    "firePattern": [
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 6,
-        "frequency": 170,
-        "delayMs": 80
-      },
-      {
-        "amplitude": 4,
-        "frequency": 110,
-        "delayMs": 180
-      },
-      {
-        "amplitude": 2,
-        "frequency": 60,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 1,
-        "frequency": 30,
-        "delayMs": 420
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 500
-      }
-    ]
+    "fireAmplitude": 7
   },
   "PURE KILL-FEED PISTOL": {
-    "startPosition": 4,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 7,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 70,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 60
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 140
-      },
-      {
-        "amplitude": 3,
-        "frequency": 80,
-        "delayMs": 220
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 380
-      }
-    ]
+    "fireAmplitude": 8
   },
   "SHRAPNEL SMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 5,
-    "fireFrequency": 150
+    "fireAmplitude": 5
   },
   "BLITZ SHRAPNEL SMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 5,
-    "fireFrequency": 150
+    "fireAmplitude": 5
   },
   "VOID SHRAPNEL SMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 6,
-    "fireFrequency": 160
+    "fireAmplitude": 6
   },
   "PURE SHRAPNEL SMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 6,
-    "fireFrequency": 170
+    "fireAmplitude": 6
   },
   "CRESCENDO SHOTGUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 50,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 50
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 120
-      },
-      {
-        "amplitude": 3,
-        "frequency": 80,
-        "delayMs": 200
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 280
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 350
-      }
-    ]
+    "fireAmplitude": 8
   },
   "BLITZ CRESCENDO SHOTGUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 7,
-    "fireFrequency": 45,
-    "firePattern": [
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 5,
-        "frequency": 150,
-        "delayMs": 60
-      },
-      {
-        "amplitude": 3,
-        "frequency": 90,
-        "delayMs": 140
-      },
-      {
-        "amplitude": 2,
-        "frequency": 50,
-        "delayMs": 220
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 300
-      }
-    ]
+    "fireAmplitude": 7
   },
   "VOID CRESCENDO SHOTGUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 50,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 50
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 120
-      },
-      {
-        "amplitude": 3,
-        "frequency": 80,
-        "delayMs": 200
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 280
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 350
-      }
-    ]
+    "fireAmplitude": 8
   },
   "PURE CRESCENDO SHOTGUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 7,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 60,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 40
-      },
-      {
-        "amplitude": 6,
-        "frequency": 150,
-        "delayMs": 100
-      },
-      {
-        "amplitude": 4,
-        "frequency": 100,
-        "delayMs": 170
-      },
-      {
-        "amplitude": 2,
-        "frequency": 50,
-        "delayMs": 250
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 320
-      }
-    ]
+    "fireAmplitude": 8
   },
   "PRECISION RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 40,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 80
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 180
-      },
-      {
-        "amplitude": 3,
-        "frequency": 90,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 420
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 500
-      }
-    ]
+    "fireAmplitude": 8
   },
   "PURE PRECISION RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 50
+    "fireAmplitude": 8
   },
   "RAY GUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 250,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 60
-      },
-      {
-        "amplitude": 5,
-        "frequency": 160,
-        "delayMs": 140
-      },
-      {
-        "amplitude": 3,
-        "frequency": 100,
-        "delayMs": 240
-      },
-      {
-        "amplitude": 1,
-        "frequency": 50,
-        "delayMs": 340
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 400
-      }
-    ]
+    "fireAmplitude": 8
   },
   "BLITZ RAY GUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 5,
-    "fireFrequency": 90,
-    "firePattern": [
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 5,
-        "frequency": 160,
-        "delayMs": 80
-      },
-      {
-        "amplitude": 3,
-        "frequency": 100,
-        "delayMs": 180
-      },
-      {
-        "amplitude": 2,
-        "frequency": 60,
-        "delayMs": 280
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 350
-      }
-    ]
+    "fireAmplitude": 5
   },
   "VOID RAY GUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 6,
-    "fireFrequency": 100,
-    "firePattern": [
-      {
-        "amplitude": 7,
-        "frequency": 230,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 6,
-        "frequency": 180,
-        "delayMs": 60
-      },
-      {
-        "amplitude": 4,
-        "frequency": 130,
-        "delayMs": 140
-      },
-      {
-        "amplitude": 2,
-        "frequency": 80,
-        "delayMs": 240
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 330
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 400
-      }
-    ]
+    "fireAmplitude": 6
   },
   "TECH RIFLE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 6,
-    "fireFrequency": 140
+    "fireAmplitude": 6
   },
   "VIRUS SNIPER": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 30,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 80
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 180
-      },
-      {
-        "amplitude": 3,
-        "frequency": 90,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 420
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 500
-      }
-    ]
+    "fireAmplitude": 8
   },
   "BLITZ VIRUS SNIPER": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 7,
-    "fireFrequency": 25,
-    "firePattern": [
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 6,
-        "frequency": 170,
-        "delayMs": 80
-      },
-      {
-        "amplitude": 4,
-        "frequency": 120,
-        "delayMs": 180
-      },
-      {
-        "amplitude": 2,
-        "frequency": 70,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 1,
-        "frequency": 30,
-        "delayMs": 420
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 500
-      }
-    ]
+    "fireAmplitude": 7
   },
   "VOID VIRUS SNIPER": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 30,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 80
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 180
-      },
-      {
-        "amplitude": 3,
-        "frequency": 90,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 420
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 500
-      }
-    ]
+    "fireAmplitude": 8
   },
   "STASIS SHOTGUN": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 8,
-    "fireFrequency": 40,
-    "firePattern": [
-      {
-        "amplitude": 8,
-        "frequency": 250,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 200,
-        "delayMs": 50
-      },
-      {
-        "amplitude": 5,
-        "frequency": 140,
-        "delayMs": 120
-      },
-      {
-        "amplitude": 3,
-        "frequency": 80,
-        "delayMs": 200
-      },
-      {
-        "amplitude": 1,
-        "frequency": 40,
-        "delayMs": 280
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 350
-      }
-    ]
+    "fireAmplitude": 8
   },
   "RAID LMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 7,
-    "fireFrequency": 200
+    "fireAmplitude": 7
   },
   "BLITZ RAID LMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 3,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 5,
-    "fireFrequency": 120,
-    "firePattern": [
-      {
-        "amplitude": 5,
-        "frequency": 180,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 5,
-        "frequency": 180,
-        "delayMs": 100
-      },
-      {
-        "amplitude": 5,
-        "frequency": 180,
-        "delayMs": 200
-      },
-      {
-        "amplitude": 5,
-        "frequency": 180,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 5,
-        "frequency": 180,
-        "delayMs": 400
-      },
-      {
-        "amplitude": 5,
-        "frequency": 180,
-        "delayMs": 500
-      },
-      {
-        "amplitude": 4,
-        "frequency": 140,
-        "delayMs": 600
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 700
-      }
-    ]
+    "fireAmplitude": 5
   },
   "VOID RAID LMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 6,
-    "fireFrequency": 140,
-    "firePattern": [
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 100
-      },
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 200
-      },
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 400
-      },
-      {
-        "amplitude": 6,
-        "frequency": 200,
-        "delayMs": 500
-      },
-      {
-        "amplitude": 5,
-        "frequency": 160,
-        "delayMs": 600
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 700
-      }
-    ]
+    "fireAmplitude": 6
   },
   "PURE RAID LMG": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 7,
-    "fireFrequency": 160,
-    "firePattern": [
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 0
-      },
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 100
-      },
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 200
-      },
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 300
-      },
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 400
-      },
-      {
-        "amplitude": 7,
-        "frequency": 220,
-        "delayMs": 500
-      },
-      {
-        "amplitude": 6,
-        "frequency": 180,
-        "delayMs": 600
-      },
-      {
-        "amplitude": 0,
-        "frequency": 0,
-        "delayMs": 700
-      }
-    ]
+    "fireAmplitude": 7
   },
   "_comment_fe3_melee": "FE3 Melee Weapons",
   "RAPIER": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 6,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 6,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "PURE RAPIER": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 7,
-    "slopeStartStrength": 5,
-    "slopeEndStrength": 7,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "PURE KNIFE": {
-    "startPosition": 2,
-    "endPosition": 8,
     "triggerStrength": 5,
-    "slopeStartStrength": 4,
-    "slopeEndStrength": 5,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "BLITZ CUDGEL": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "VOID CUDGEL": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   },
   "PURE CUDGEL": {
-    "startPosition": 1,
-    "endPosition": 8,
     "triggerStrength": 8,
-    "slopeStartStrength": 6,
-    "slopeEndStrength": 8,
-    "fireAmplitude": 0,
-    "fireFrequency": 0
+    "fireAmplitude": 0
   }
 }
