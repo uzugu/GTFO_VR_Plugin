@@ -16,26 +16,26 @@ Try to get used to the game in Non-VR mode first before using this mod!
 
 ---
 
-## PSVR2 Adaptive Trigger Support
+## PSVR2 Haptics Support
 
-GTFO VR now features full **PlayStation VR2 adaptive trigger integration** this adds support for every weapon/tool in the game to use this technology, all of them  will have special behaviors based on how they are felt.
+GTFO VR drives the **PlayStation VR2** adaptive triggers, controller haptics and headset vibration through the PSVR2 Toolkit.
 
 ### Key Features:
-- **40+ Weapon-Specific Profiles**: Each weapon has custom trigger resistance and recoil patterns
-- **Dynamic Trigger Resistance**: Feel the weight and mechanism of each weapon type through adaptive trigger feedback
-- **Progressive Resistance**: Trigger pull resistance that builds realistically based on weapon characteristics
-- **Custom Recoil Patterns**: Energy weapons like OMNECO series feature multi-stage haptic sequences
-- **C-Foam Launcher Haptics**: Oscillating "bubbly" vibration while charging that ramps up with pressure
-- **Bio Scanner Feedback**: High-frequency pulses during tagging with satisfying wave completion effects
-- **Melee Impact Haptics**: Distinct feedback for enemy hits vs. environment impacts
-- **Fully Customizable**: Edit weapon profiles in `BepInEx/plugins/PSVR2Haptics/psvr2_haptics.json`
+- **Adaptive triggers per weapon family**: pistols, rifles, shotguns, snipers, heavy weapons and HEL/energy weapons each have their own trigger wall and their own kick on every shot
+- **Controller recoil waveforms**: a low kick plus a mechanical snap, or an electronic sweep for energy weapons, on the support hand too when aiming two-handed
+- **Charge-up, C-Foam and bio scanner**: the trigger resists while a rising hum, bubbles or a scan hum play in the controller; the bio scanner adds a wave on a completed tag and a ping when an enemy appears
+- **Melee, reload and damage**: distinct thuds for enemies and surfaces, a reload pulse, and hits on both hands scaled by damage
+- **Headset vibration** (jailbroken headset): damage rumble and the elevator descent
+- **Customizable**: tune trigger strength, kick and recoil per weapon in `BepInEx/plugins/PSVR2Haptics/*.json`
 
 ### Requirements:
 1. **PSVR2 Headset** with PC connection
-2. **PSVR2 Toolkit** - Download and install from: https://github.com/BnuuySolutions/PSVR2Toolkit
+2. **PSVR2 Toolkit** - https://github.com/BnuuySolutions/PSVR2Toolkit
+   - v1.0.0 experimental: everything above (headset vibration needs the [vr2jb](https://github.com/BnuuySolutions/vr2jb) jailbreak)
+   - v0.2.x: adaptive triggers only; controller feedback uses SteamVR pulses
 3. **Enable in Settings**: Launch GTFO VR → Settings → VR Settings → Enable PSVR2 Haptics
 
-For detailed configuration and customization, see [PSVR2Haptics/README.md](Release_Dependencies/libs/PSVR2Haptics/README.md)
+For configuration and troubleshooting, see [PSVR2Haptics/README.md](Release_Dependencies/libs/PSVR2Haptics/README.md)
 
 ---
 

@@ -22,3 +22,4 @@ The script sets `GTFO_PATH` for MSBuild so the project can resolve the BepInEx a
 ## Output
 - `GTFO_VR\bin\<Configuration>\GTFO_VR.dll` (standard build output)
 - Unless `-SkipCopy` is used, the DLL is also copied into `GTFO_PATH\BepInEx\plugins` for immediate use.
+- The same post-build step copies `Release_Dependencies\libs\PSVR2Haptics` into `GTFO_PATH\BepInEx\plugins\PSVR2Haptics`, overwriting the profile JSON there. Edit the copies in the repository; edits made in the game folder are lost at the next build.
