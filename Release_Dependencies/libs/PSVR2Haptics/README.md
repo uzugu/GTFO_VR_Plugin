@@ -30,8 +30,11 @@ game. If SteamVR restarts, haptics pause and resume by themselves.
 | Shoot | A recoil kick against the finger. Shotguns, snipers, precision rifles, revolvers, HEL and Techman release the trigger first, then kick, then add a short tail | Recoil waveform: low kick plus high snap, or an electronic sweep for energy weapons; the support hand too when aiming two-handed | |
 | Charge-up weapons | Resistance rising to maximum | Hum rising in pitch, pulse at full charge | |
 | C-Foam pressure | Resistance building with pressure | Bubbling texture | |
-| Bio scanner tagging | Firm resistance | High-pitched hum; a wave when a tag completes; a ping when an enemy appears | |
-| Melee hit | Decaying vibration | Thud: heavy for enemies, lighter for surfaces | |
+| Bio tracker | While tagging, buzz bursts that speed up and merge into a steady lock-on buzz; the scan wave when a tag completes; a sharp tick for each new blip | A quiet hum; wave tones; a ping per blip | |
+| Melee charge | Light resistance at rest that builds strongly with the charge, with a detent at half and at full charge | Low tremor rising with the charge; a thump at full charge | |
+| Melee hit | The tension lets go, then a short heavy jolt that rings out quickly; stronger the more charged the hit. A shove is a light bump | Thud, heavier for charged hits | |
+| Scout scream | | | A low rumble rising while the scout charges, then a wave that peaks and fades with the scream. Stronger the closer the scout |
+| Other enemies screaming | | | A short, lighter wave, at most every 6 s |
 | Reload | Short pulse | SteamVR reload pulse | |
 | Taking damage | Short pulse on both triggers | Hit on both controllers, scaled by damage | Rumble, scaled by damage |
 | Elevator drop | | Continuous rumble with impacts | Continuous rumble with impacts |
@@ -112,4 +115,5 @@ Check `BepInEx/LogOutput.log`:
 | `... previous session is still releasing the Toolkit` | A Toolkit call from before the level change has not returned yet (each gives up after 5 s); PSVR2 haptics connect once it has. |
 | `PSVR2 output worker error; releasing the Toolkit and reconnecting` | An unexpected error, with the exception on the following lines; output resumes after 5 s. Worth reporting. |
 | `PSVR2 HMD damage rumble skipped: backend ...` | Headset rumble needs the direct CAPI and a jailbroken headset. |
+| `PSVR2 HMD scream wave submitted: ...` | A scout (or another enemy) screamed close enough to rumble the headset; distance and peak frequency follow. |
 | `PSVR2 weapon equipped: ...` | The profile in use: trigger mode, wall (`Pull=start-end@strength`), kick (`RecoilPush`), and recoil waveform (`PCM`). |

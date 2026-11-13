@@ -1,3 +1,4 @@
+using GTFO_VR.Core.PlayerBehaviours;
 using GTFO_VR.Core.VR_Input;
 using GTFO_VR.Events;
 using Gear;
@@ -18,9 +19,10 @@ namespace GTFO_VR.Core.PSVR2
     /// waits on the driver.
     ///
     /// Design rule: resistance on the trigger, texture in PCM. A trigger runs one Sony effect at a time,
-    /// so sustained effects (weapon charge-up, C-Foam pressure, bio-scanner tagging) hold a resistance
-    /// effect on the trigger while their vibration texture plays as controller PCM. Without controller
-    /// PCM (legacy IPC, or Toolkit enhanced haptics off) the texture goes back on the trigger motor.
+    /// so sustained effects (weapon and melee charge-up, C-Foam pressure) hold a resistance effect on the
+    /// trigger while their vibration texture plays as controller PCM. Without controller PCM (legacy IPC,
+    /// or Toolkit enhanced haptics off) the texture goes back on the trigger motor. The bio tracker is the
+    /// exception: its buzz, scan wave and blip ticks are the point of it, so they play on the trigger.
     /// </summary>
     internal static class PSVR2HapticsManager
     {
@@ -58,16 +60,39 @@ namespace GTFO_VR.Core.PSVR2
         private const float DAMAGE_PCM_KICK_HZ = 50f;
         private const float DAMAGE_PCM_SNAP_HZ = 130f;
 
-        // Melee: decaying trigger vibration plus a PCM thud on the weapon hand.
-        private const float MELEE_ENEMY_KICK_HZ = 42f;
-        private const float MELEE_ENEMY_SNAP_HZ = 120f;
-        private const float MELEE_ENEMY_MIN_AMPLITUDE = 0.65f;
-        private const int MELEE_ENEMY_PCM_MS = 130;
-        private const float MELEE_SURFACE_KICK_HZ = 70f;
-        private const float MELEE_SURFACE_SNAP_HZ = 190f;
-        private const float MELEE_SURFACE_MAX_AMPLITUDE = 0.7f;
-        private const float MELEE_SURFACE_MIN_AMPLITUDE = 0.35f;
-        private const int MELEE_SURFACE_PCM_MS = 90;
+        // Automatic fire: a trigger push of at least three output frames when the fire rate leaves room.
+        private const int AUTOMATIC_MIN_PUSH_MS = 28;
+
+        // Melee: a light rest resistance that the charge builds to the motor's maximum, with a detent at half
+        // and full charge and a low PCM tremor underneath. A hit lets go for a frame, jolts, and rings out in a
+        // few frames, all scaled by the share of full charged damage; a shove is a light bump.
+        private const byte MELEE_REST_POSITION = 1;
+        private const byte MELEE_REST_STRENGTH = 2;
+        private const byte MELEE_CHARGE_MIN_STRENGTH = 4;
+        private const float MELEE_CHARGE_PEAK_AT = 0.7f;
+        private const float MELEE_CHARGE_RESTART_BELOW = 0.1f;
+        private const byte MELEE_DETENT_HZ = 70;
+        private const float MELEE_TREMOR_MIN_HZ = 30f;
+        private const float MELEE_TREMOR_MAX_HZ = 70f;
+        private const float MELEE_TREMOR_MIN_AMPLITUDE = 0.12f;
+        private const float MELEE_TREMOR_MAX_AMPLITUDE = 0.4f;
+        private const float MELEE_TREMOR_RATE_HZ = 7f;
+        private const float MELEE_TREMOR_DEPTH = 0.35f;
+        private const float MELEE_FULL_CHARGE_AMPLITUDE = 0.6f;
+        private const int MELEE_FULL_CHARGE_PCM_MS = 70;
+        private const float MELEE_FULL_CHARGE_KICK_HZ = 35f;
+        private const float MELEE_FULL_CHARGE_SNAP_HZ = 90f;
+        private const byte MELEE_RING_POSITION = 2;
+        private const byte MELEE_RING_HZ = 45;
+        private const float MELEE_HIT_KICK_HZ = 40f;
+        private const float MELEE_HIT_SNAP_HZ = 115f;
+        private const float MELEE_HIT_MIN_AMPLITUDE = 0.7f;
+        private const int MELEE_HIT_MIN_PCM_MS = 100;
+        private const int MELEE_HIT_MAX_PCM_MS = 190;
+        private const float MELEE_SHOVE_KICK_HZ = 70f;
+        private const float MELEE_SHOVE_SNAP_HZ = 190f;
+        private const float MELEE_SHOVE_AMPLITUDE = 0.45f;
+        private const int MELEE_SHOVE_PCM_MS = 80;
 
         // Sustained effects end this long after the game's last update (cancelled charge, released tag).
         private const int SUSTAIN_HOLD_MS = 150;
@@ -94,18 +119,32 @@ namespace GTFO_VR.Core.PSVR2
         private const float GLUE_BUBBLE_MAX_RATE_HZ = 15f;
         private const float GLUE_BUBBLE_DEPTH = 0.3f;
 
-        // Bio scanner: resistance while tagging, high-pitched PCM hum, PCM wave when a tag completes.
-        private const byte SCAN_HOLD_POSITION = 1;
-        private const byte SCAN_HOLD_MIN_STRENGTH = 5;
-        private const byte SCAN_HOLD_MAX_STRENGTH = 7;
+        // Bio tracker: the trigger leads. Tagging plays buzz bursts that speed up and merge into a steady lock-on
+        // buzz, with light resistance between bursts; a completed tag sends the scan wave through the trigger;
+        // each new blip is a sharp tick that cuts into the wave, which then carries on. PCM plays underneath.
+        private const byte SCAN_REST_POSITION = 1;
+        private const byte SCAN_REST_MIN_STRENGTH = 3;
+        private const byte SCAN_REST_MAX_STRENGTH = 5;
         private const byte SCAN_VIBRATION_POSITION = 3;
+        private const byte SCAN_BUZZ_MIN_AMPLITUDE = 5;
+        private const byte SCAN_BUZZ_MIN_HZ = 100;
+        private const byte SCAN_BUZZ_MAX_HZ = 220;
+        private const int SCAN_BUZZ_HZ_STEP = 10;
+        private const float SCAN_BURST_MIN_RATE_HZ = 4f;
+        private const float SCAN_BURST_MAX_RATE_HZ = 12f;
+        private const float SCAN_BURST_MIN_DUTY = 0.45f;
+        private const float SCAN_LOCK_START = 0.6f;
+        private const float SCAN_LOCK_FULL = 0.95f;
+        private const float SCAN_NEW_TAG_GAP_SECONDS = 0.3f;
         private const float SCAN_HUM_MIN_HZ = 100f;
         private const float SCAN_HUM_MAX_HZ = 220f;
-        private const float SCAN_HUM_MIN_AMPLITUDE = 0.2f;
-        private const float SCAN_HUM_MAX_AMPLITUDE = 0.5f;
-        private const float SCAN_WAVE_PCM_SCALE = 0.7f;
+        private const float SCAN_HUM_MIN_AMPLITUDE = 0.12f;
+        private const float SCAN_HUM_MAX_AMPLITUDE = 0.3f;
+        private const float SCAN_WAVE_PCM_SCALE = 0.55f;
+        private const byte SCAN_TICK_AMPLITUDE = 8;
+        private const byte SCAN_TICK_HZ = 230;
+        private const int SCAN_TICK_MS = 25;
         private const float SCAN_PING_HZ = 150f;
-        private const byte SCAN_PING_TRIGGER_AMPLITUDE = 5;
         private const float SCAN_PING_AMPLITUDE = 0.55f;
         private const int SCAN_PING_MS = 60;
         private const float SCAN_PING_MIN_INTERVAL_SECONDS = 0.15f;
@@ -121,6 +160,24 @@ namespace GTFO_VR.Core.PSVR2
             (2, 80, 300),
             (1, 60, 100)
         };
+
+        // Screams on the headset motor (10-25 Hz): a scout's charge-up builds a low rising tension and its
+        // scream starts a wave that peaks and fades over the scream; other enemies' alert screams get a short,
+        // lighter wave with a cooldown. Scaled by distance to the local player.
+        private const byte HMD_MIN_RUMBLE_HZ = 10;
+        private const float SCREAM_FULL_DISTANCE = 10f;
+        private const float SCOUT_SCREAM_MAX_DISTANCE = 45f;
+        private const byte SCOUT_CHARGE_MAX_HZ = 15;
+        private const byte SCOUT_SCREAM_MIN_PEAK_HZ = 15;
+        private const byte SCOUT_SCREAM_MAX_PEAK_HZ = 25;
+        private const int SCOUT_SCREAM_WAVE_STEPS = 6;
+        private const float ENEMY_SCREAM_MAX_DISTANCE = 25f;
+        private const byte ENEMY_SCREAM_MIN_PEAK_HZ = 12;
+        private const byte ENEMY_SCREAM_MAX_PEAK_HZ = 20;
+        private const int ENEMY_SCREAM_MIN_MS = 500;
+        private const int ENEMY_SCREAM_MAX_MS = 900;
+        private const int ENEMY_SCREAM_WAVE_STEPS = 3;
+        private const float ENEMY_SCREAM_COOLDOWN_SECONDS = 6f;
 
         private static readonly PSVR2OutputWorker _worker = new PSVR2OutputWorker();
 
@@ -169,6 +226,14 @@ namespace GTFO_VR.Core.PSVR2
         private static bool _chargeReadyPlayed;
         private static bool _warnedNoHmdRumble;
         private static float _lastEnemyPingTime = float.NegativeInfinity;
+        private static bool _meleeHalfDetentPlayed;
+        private static bool _meleeFullDetentPlayed;
+        private static float _scanBurstPhase;
+        private static float _lastScanChargeTime = -1000f;
+        private static float _lastScanProgress;
+        private static float _scanWaveStartTime = -1000f;
+        private static float _screamWaveEndTime = -1000f;
+        private static float _lastEnemyScreamTime = -1000f;
 
         private static bool IsActive => _initialized && VRConfig.configUsePSVR2Haptics.Value;
 
@@ -402,6 +467,23 @@ namespace GTFO_VR.Core.PSVR2
             float damagePerShot = TryGetFloat(TryGetMemberValue(archetypeData, "Damage"));
             int? archetypeId = GetArchetypeId(item);
 
+            if (IsMeleeWeapon(item))
+            {
+                // Melee has no gun break: a light rest resistance that the charge builds on (TriggerMeleeCharging).
+                if (profile.TriggerMode != PSVR2TriggerMode.Off)
+                {
+                    profile.TriggerMode = PSVR2TriggerMode.Feedback;
+                }
+
+                profile.FeedbackPosition = MELEE_REST_POSITION;
+                profile.FeedbackStrength = MELEE_REST_STRENGTH;
+                profile.StartPosition = MELEE_REST_POSITION;
+                profile.TriggerStrength = MELEE_REST_STRENGTH;
+                profile.IsAutomatic = false;
+                profile.HasPostBreakResistance = false;
+                return;
+            }
+
             bool namedAutomatic = ContainsAny(
                 identity,
                 "smg",
@@ -527,6 +609,9 @@ namespace GTFO_VR.Core.PSVR2
                 int durationMs = Mathf.Clamp(Mathf.RoundToInt(profile.PcmDurationMs * 0.4f), 18, 45);
                 if (profile.IsAutomatic && shotDelay > 0f)
                 {
+                    // Two-frame pushes sit at the edge of what the trigger motor renders and read as missed
+                    // shots in sustained fire; the fire-rate cap below still wins for fast bursts.
+                    durationMs = Math.Max(durationMs, AUTOMATIC_MIN_PUSH_MS);
                     durationMs = Math.Min(durationMs, Mathf.Clamp(Mathf.RoundToInt(shotDelay * 420f), 14, 32));
                 }
                 profile.RecoilPushDurationMs = durationMs;
@@ -1037,10 +1122,11 @@ namespace GTFO_VR.Core.PSVR2
         }
 
         /// <summary>
-        /// Melee hit: decaying trigger vibration (enemy hits short and heavy, surfaces longer and lighter)
-        /// and a PCM thud on the weapon hand. Returns true when the PCM thud played.
+        /// Melee hit or shove. The charge resistance lets go for one frame, then a short heavy jolt rings out in a
+        /// few frames, with a PCM thud on the weapon hand; all of it scales with <paramref name="damageShare"/>,
+        /// the hit's share of full charged damage. A shove is a light bump. Returns true when the PCM thud played.
         /// </summary>
-        internal static bool TriggerMeleeImpact(float damage, bool hitEnemy)
+        internal static bool TriggerMeleeImpact(float damageShare, bool isAttack)
         {
             if (!IsActive)
             {
@@ -1048,58 +1134,133 @@ namespace GTFO_VR.Core.PSVR2
             }
 
             var mainController = MainHand;
-            float normalized = hitEnemy ? Mathf.Clamp01(damage) : Mathf.Clamp01(damage * 0.6f);
-            if (hitEnemy)
+            EndWeaponCharge();
+
+            float charge = isAttack ? Mathf.Clamp01(damageShare) : 0f;
+            if (_currentProfile.TriggerMode != PSVR2TriggerMode.Off)
             {
-                normalized = Mathf.Max(normalized, 0.35f);
+                int jolt = isAttack ? Mathf.RoundToInt(Mathf.Lerp(6, MAX_STRENGTH, charge)) : 5;
+                int ring = isAttack ? Mathf.RoundToInt(Mathf.Lerp(4, MAX_STRENGTH, charge)) : 3;
+                int joltMs = isAttack ? Mathf.RoundToInt(Mathf.Lerp(32, 54, charge)) : 22;
+                int ringMs = isAttack ? Mathf.RoundToInt(Mathf.Lerp(32, 75, charge)) : 22;
+                _worker.StartSequence(mainController, new[]
+                {
+                    new PSVR2TriggerStep(PSVR2TriggerEffect.Off, 1),
+                    new PSVR2TriggerStep(PSVR2TriggerEffect.Feedback(MELEE_REST_POSITION, jolt), Frames(joltMs)),
+                    new PSVR2TriggerStep(PSVR2TriggerEffect.Vibration(MELEE_RING_POSITION, ring, MELEE_RING_HZ), Frames(ringMs)),
+                    new PSVR2TriggerStep(PSVR2TriggerEffect.Vibration(MELEE_RING_POSITION, Math.Max(1, ring / 2), MELEE_RING_HZ * 2 / 3), Frames(ringMs))
+                });
             }
-
-            byte baseAmplitude = (byte)Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(MIN_STRENGTH, MAX_STRENGTH, normalized)), MIN_STRENGTH, MAX_STRENGTH);
-            int stepCount = hitEnemy ? 5 : 6;
-            int stepIntervalMs = hitEnemy ? 120 : 200;
-            float baseFrequency = hitEnemy ? 30f : 70f;
-            float decayFactor = hitEnemy ? 3.3f : 2.0f;
-
-            // The last step of the decay is silence, which the profile restore after the sequence replaces.
-            var steps = new PSVR2TriggerStep[stepCount - 1];
-            for (int i = 0; i < stepCount - 1; i++)
-            {
-                float t = i / (float)(stepCount - 1);
-                float decay = Mathf.Exp(-decayFactor * t);
-                int amplitude = Mathf.Clamp(Mathf.RoundToInt(baseAmplitude * decay), 0, MAX_STRENGTH);
-                int frequency = Mathf.Clamp(Mathf.RoundToInt(baseFrequency * decay), 0, 255);
-                steps[i] = new PSVR2TriggerStep(
-                    PSVR2TriggerEffect.Vibration(FIRE_VIBRATION_POSITION, amplitude, frequency),
-                    Frames(stepIntervalMs));
-            }
-
-            _worker.StartSequence(mainController, steps);
 
             if (!_worker.PcmAvailable)
             {
                 return false;
             }
 
-            if (hitEnemy)
+            if (isAttack)
             {
                 _worker.Synth.PlayImpact(
                     mainController,
-                    Mathf.Lerp(MELEE_ENEMY_MIN_AMPLITUDE, 1f, normalized),
-                    MELEE_ENEMY_PCM_MS,
-                    MELEE_ENEMY_KICK_HZ,
-                    MELEE_ENEMY_SNAP_HZ);
+                    Mathf.Lerp(MELEE_HIT_MIN_AMPLITUDE, 1f, charge),
+                    Mathf.RoundToInt(Mathf.Lerp(MELEE_HIT_MIN_PCM_MS, MELEE_HIT_MAX_PCM_MS, charge)),
+                    MELEE_HIT_KICK_HZ,
+                    MELEE_HIT_SNAP_HZ);
             }
             else
             {
-                _worker.Synth.PlayImpact(
-                    mainController,
-                    Mathf.Lerp(MELEE_SURFACE_MIN_AMPLITUDE, MELEE_SURFACE_MAX_AMPLITUDE, normalized),
-                    MELEE_SURFACE_PCM_MS,
-                    MELEE_SURFACE_KICK_HZ,
-                    MELEE_SURFACE_SNAP_HZ);
+                _worker.Synth.PlayImpact(mainController, MELEE_SHOVE_AMPLITUDE, MELEE_SHOVE_PCM_MS, MELEE_SHOVE_KICK_HZ, MELEE_SHOVE_SNAP_HZ);
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Melee charge, called every frame while the charge indicator shows. The trigger pushes back harder as the
+        /// charge builds and reaches the motor's maximum at <see cref="MELEE_CHARGE_PEAK_AT"/> of the charge, with a
+        /// detent at half and at full charge; a low PCM tremor rises underneath. Returns true when the tremor plays,
+        /// in which case the SteamVR charge pulses are skipped.
+        /// </summary>
+        internal static bool TriggerMeleeCharging(ItemEquippable item, float chargeProgress)
+        {
+            if (!IsActive || !IsMeleeWeapon(item))
+            {
+                return false;
+            }
+
+            var mainController = MainHand;
+            float progress = Mathf.Clamp01(chargeProgress);
+            if (progress < MELEE_CHARGE_RESTART_BELOW)
+            {
+                _meleeHalfDetentPlayed = false;
+                _meleeFullDetentPlayed = false;
+            }
+
+            bool reachedFull = progress >= 0.99f && !_meleeFullDetentPlayed;
+            bool reachedHalf = !reachedFull && progress >= 0.5f && !_meleeHalfDetentPlayed;
+            if (reachedFull)
+            {
+                _meleeFullDetentPlayed = true;
+                _meleeHalfDetentPlayed = true;
+            }
+            else if (reachedHalf)
+            {
+                _meleeHalfDetentPlayed = true;
+            }
+
+            if (_currentProfile.TriggerMode != PSVR2TriggerMode.Off)
+            {
+                int strength = Mathf.RoundToInt(Mathf.Lerp(MELEE_CHARGE_MIN_STRENGTH, MAX_STRENGTH, Mathf.Clamp01(progress / MELEE_CHARGE_PEAK_AT)));
+                _worker.SetHold(mainController, PSVR2HoldKind.WeaponCharge, PSVR2TriggerEffect.Feedback(MELEE_REST_POSITION, strength), SustainFrames);
+
+                if (reachedFull)
+                {
+                    _worker.StartSequence(mainController, MeleeDetent(MAX_STRENGTH, 4));
+                }
+                else if (reachedHalf)
+                {
+                    _worker.StartSequence(mainController, MeleeDetent(6, 2));
+                }
+            }
+
+            if (!_worker.PcmAvailable)
+            {
+                return false;
+            }
+
+            if (progress > 0.05f)
+            {
+                _worker.Synth.SetTexture(
+                    mainController,
+                    PSVR2TextureKind.WeaponCharge,
+                    Mathf.Lerp(MELEE_TREMOR_MIN_HZ, MELEE_TREMOR_MAX_HZ, progress),
+                    Mathf.Lerp(MELEE_TREMOR_MIN_AMPLITUDE, MELEE_TREMOR_MAX_AMPLITUDE, progress),
+                    MELEE_TREMOR_RATE_HZ,
+                    MELEE_TREMOR_DEPTH,
+                    SUSTAIN_HOLD_MS);
+            }
+
+            if (reachedFull)
+            {
+                _worker.Synth.PlayImpact(mainController, MELEE_FULL_CHARGE_AMPLITUDE, MELEE_FULL_CHARGE_PCM_MS, MELEE_FULL_CHARGE_KICK_HZ, MELEE_FULL_CHARGE_SNAP_HZ);
+            }
+
+            return true;
+        }
+
+        /// <summary>A charge detent: the resistance lets go for a frame, then a short low bump.</summary>
+        private static PSVR2TriggerStep[] MeleeDetent(int amplitude, int frames)
+        {
+            return new[]
+            {
+                new PSVR2TriggerStep(PSVR2TriggerEffect.Off, 1),
+                new PSVR2TriggerStep(PSVR2TriggerEffect.Vibration(MELEE_REST_POSITION, amplitude, MELEE_DETENT_HZ), frames)
+            };
+        }
+
+        /// <summary>Hammers, knives, bats and spears. IL2CPP wrappers keep their static type, so this casts.</summary>
+        private static bool IsMeleeWeapon(ItemEquippable item)
+        {
+            return item != null && item.TryCast<MeleeWeaponFirstPerson>() != null;
         }
 
         /// <summary>Reload: a short trigger pulse; the SteamVR reload pulse still plays on the controller.</summary>
@@ -1267,7 +1428,11 @@ namespace GTFO_VR.Core.PSVR2
                 SustainFrames);
         }
 
-        /// <summary>Bio scanner tagging, called while a tag charges: resistance plus a rising PCM hum.</summary>
+        /// <summary>
+        /// Bio tracker tagging, called while a tag charges. The trigger plays buzz bursts whose rate, pitch and
+        /// strength rise with the tag and merge into a steady lock-on buzz near the end, with light resistance
+        /// between bursts; a quiet PCM hum plays underneath.
+        /// </summary>
         internal static void TriggerBioScannerCharge(float tagProgress)
         {
             if (!IsActive)
@@ -1277,41 +1442,50 @@ namespace GTFO_VR.Core.PSVR2
 
             var mainController = MainHand;
             float progress = Mathf.Clamp01(tagProgress);
+            float now = Time.unscaledTime;
+            bool newTag = now - _lastScanChargeTime > SCAN_NEW_TAG_GAP_SECONDS || progress < _lastScanProgress - 0.2f;
+            float burstRate = Mathf.Lerp(SCAN_BURST_MIN_RATE_HZ, SCAN_BURST_MAX_RATE_HZ, progress);
+            _scanBurstPhase = newTag ? 0f : Mathf.Repeat(_scanBurstPhase + (now - _lastScanChargeTime) * burstRate, 1f);
+            _lastScanChargeTime = now;
+            _lastScanProgress = progress;
 
-            if (_worker.PcmAvailable)
+            float duty = Mathf.Lerp(SCAN_BURST_MIN_DUTY, 1f, Mathf.InverseLerp(SCAN_LOCK_START, SCAN_LOCK_FULL, progress));
+            PSVR2TriggerEffect effect;
+            if (_scanBurstPhase < duty)
             {
-                byte strength = (byte)Mathf.RoundToInt(Mathf.Lerp(SCAN_HOLD_MIN_STRENGTH, SCAN_HOLD_MAX_STRENGTH, progress));
-                _worker.SetHold(
-                    mainController,
-                    PSVR2HoldKind.BioScanner,
-                    PSVR2TriggerEffect.Feedback(SCAN_HOLD_POSITION, strength),
-                    SustainFrames);
-                if (progress > 0.02f)
-                {
-                    _worker.Synth.SetTexture(
-                        mainController,
-                        PSVR2TextureKind.BioScanner,
-                        Mathf.Lerp(SCAN_HUM_MIN_HZ, SCAN_HUM_MAX_HZ, progress),
-                        Mathf.Lerp(SCAN_HUM_MIN_AMPLITUDE, SCAN_HUM_MAX_AMPLITUDE, progress),
-                        0f,
-                        0f,
-                        SUSTAIN_HOLD_MS);
-                }
-
-                return;
+                // Pitch in 10 Hz steps, so the trigger gets a new effect a dozen times per tag rather than every frame.
+                int frequency = Mathf.RoundToInt(Mathf.Lerp(SCAN_BUZZ_MIN_HZ, SCAN_BUZZ_MAX_HZ, progress) / SCAN_BUZZ_HZ_STEP) * SCAN_BUZZ_HZ_STEP;
+                effect = PSVR2TriggerEffect.Vibration(
+                    SCAN_VIBRATION_POSITION,
+                    Mathf.RoundToInt(Mathf.Lerp(SCAN_BUZZ_MIN_AMPLITUDE, MAX_STRENGTH, progress)),
+                    frequency);
+            }
+            else
+            {
+                effect = PSVR2TriggerEffect.Feedback(
+                    SCAN_REST_POSITION,
+                    Mathf.RoundToInt(Mathf.Lerp(SCAN_REST_MIN_STRENGTH, SCAN_REST_MAX_STRENGTH, progress)));
             }
 
-            // No controller PCM: high-pitched vibration on the trigger motor.
-            PSVR2TriggerEffect effect = progress > 0.02f
-                ? PSVR2TriggerEffect.Vibration(
-                    SCAN_VIBRATION_POSITION,
-                    Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(5, 8, progress)), 5, MAX_STRENGTH),
-                    Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(100, 220, progress)), 100, 255))
-                : PSVR2TriggerEffect.Feedback(SCAN_HOLD_POSITION, Mathf.RoundToInt(Mathf.Lerp(6, 8, progress)));
             _worker.SetHold(mainController, PSVR2HoldKind.BioScanner, effect, SustainFrames);
+
+            if (_worker.PcmAvailable && progress > 0.02f)
+            {
+                _worker.Synth.SetTexture(
+                    mainController,
+                    PSVR2TextureKind.BioScanner,
+                    Mathf.Lerp(SCAN_HUM_MIN_HZ, SCAN_HUM_MAX_HZ, progress),
+                    Mathf.Lerp(SCAN_HUM_MIN_AMPLITUDE, SCAN_HUM_MAX_AMPLITUDE, progress),
+                    0f,
+                    0f,
+                    SUSTAIN_HOLD_MS);
+            }
         }
 
-        /// <summary>Successful tag: a wave that goes out strong and reflects back weaker.</summary>
+        /// <summary>
+        /// Completed tag: the scan wave goes out through the trigger strong and reflects back weaker, with matching
+        /// PCM tones underneath. Blip ticks (TriggerEnemyDetection) cut into it and it carries on afterwards.
+        /// </summary>
         internal static void TriggerBioScannerWave()
         {
             if (!IsActive)
@@ -1323,38 +1497,34 @@ namespace GTFO_VR.Core.PSVR2
             _worker.Synth.StopTexture(PSVR2TextureKind.BioScanner);
             var mainController = MainHand;
 
-            if (_worker.PcmAvailable)
-            {
-                int delayMs = 0;
-                for (int i = 0; i < SCAN_WAVE.Length; i++)
-                {
-                    var step = SCAN_WAVE[i];
-                    float nextFrequency = i + 1 < SCAN_WAVE.Length ? SCAN_WAVE[i + 1].Frequency : step.Frequency * 0.85f;
-                    _worker.Synth.PlayTone(
-                        mainController,
-                        step.Frequency,
-                        nextFrequency,
-                        step.Amplitude / 8f * SCAN_WAVE_PCM_SCALE,
-                        step.DurationMs,
-                        delayMs);
-                    delayMs += step.DurationMs;
-                }
+            _scanWaveStartTime = Time.unscaledTime;
+            _worker.StartSequence(mainController, ScanWaveSteps(0).ToArray());
 
+            if (!_worker.PcmAvailable)
+            {
                 return;
             }
 
-            var steps = new PSVR2TriggerStep[SCAN_WAVE.Length];
+            int delayMs = 0;
             for (int i = 0; i < SCAN_WAVE.Length; i++)
             {
-                steps[i] = new PSVR2TriggerStep(
-                    PSVR2TriggerEffect.Vibration(SCAN_VIBRATION_POSITION, SCAN_WAVE[i].Amplitude, SCAN_WAVE[i].Frequency),
-                    Frames(SCAN_WAVE[i].DurationMs));
+                var step = SCAN_WAVE[i];
+                float nextFrequency = i + 1 < SCAN_WAVE.Length ? SCAN_WAVE[i + 1].Frequency : step.Frequency * 0.85f;
+                _worker.Synth.PlayTone(
+                    mainController,
+                    step.Frequency,
+                    nextFrequency,
+                    step.Amplitude / 8f * SCAN_WAVE_PCM_SCALE,
+                    step.DurationMs,
+                    delayMs);
+                delayMs += step.DurationMs;
             }
-
-            _worker.StartSequence(mainController, steps);
         }
 
-        /// <summary>Enemy appeared on the scanner: one short ping (at most every 150 ms).</summary>
+        /// <summary>
+        /// New blip on the tracker: a sharp trigger tick (at most every 150 ms) and a PCM ping. During a scan wave
+        /// the tick cuts in and the wave carries on from where it would have been.
+        /// </summary>
         internal static void TriggerEnemyDetection()
         {
             if (!IsActive)
@@ -1370,18 +1540,159 @@ namespace GTFO_VR.Core.PSVR2
 
             _lastEnemyPingTime = now;
             var mainController = MainHand;
+            var steps = new List<PSVR2TriggerStep>
+            {
+                new PSVR2TriggerStep(
+                    PSVR2TriggerEffect.Vibration(SCAN_VIBRATION_POSITION, SCAN_TICK_AMPLITUDE, SCAN_TICK_HZ),
+                    Frames(SCAN_TICK_MS))
+            };
+
+            float waveElapsedSeconds = now - _scanWaveStartTime;
+            if (waveElapsedSeconds >= 0f && waveElapsedSeconds < ScanWaveMs / 1000f)
+            {
+                steps.AddRange(ScanWaveSteps(Mathf.RoundToInt(waveElapsedSeconds * 1000f) + SCAN_TICK_MS));
+            }
+
+            _worker.StartSequence(mainController, steps.ToArray());
+
             if (_worker.PcmAvailable)
             {
                 _worker.Synth.PlayTone(mainController, SCAN_PING_HZ, SCAN_PING_HZ, SCAN_PING_AMPLITUDE, SCAN_PING_MS);
+            }
+        }
+
+        /// <summary>The trigger scan wave from <paramref name="elapsedMs"/> into it; empty once the wave is over.</summary>
+        private static List<PSVR2TriggerStep> ScanWaveSteps(int elapsedMs)
+        {
+            var steps = new List<PSVR2TriggerStep>();
+            int stepStartMs = 0;
+            foreach (var step in SCAN_WAVE)
+            {
+                int stepEndMs = stepStartMs + step.DurationMs;
+                if (stepEndMs > elapsedMs)
+                {
+                    steps.Add(new PSVR2TriggerStep(
+                        PSVR2TriggerEffect.Vibration(SCAN_VIBRATION_POSITION, step.Amplitude, step.Frequency),
+                        Frames(stepEndMs - Math.Max(stepStartMs, elapsedMs))));
+                }
+
+                stepStartMs = stepEndMs;
+            }
+
+            return steps;
+        }
+
+        private static int ScanWaveMs
+        {
+            get
+            {
+                int totalMs = 0;
+                foreach (var step in SCAN_WAVE)
+                {
+                    totalMs += step.DurationMs;
+                }
+
+                return totalMs;
+            }
+        }
+
+        /// <summary>A scout is charging its scream: a low headset rumble that rises with the charge while it lasts.</summary>
+        internal static void UpdateScoutScreamCharge(Vector3 scoutPosition, float chargeProgress)
+        {
+            if (!IsActive || !_worker.HmdRumbleAvailable)
+            {
                 return;
             }
 
-            _worker.StartSequence(mainController, new[]
+            float closeness = ScreamCloseness(scoutPosition, SCOUT_SCREAM_MAX_DISTANCE, out _);
+            if (closeness <= 0f)
             {
-                new PSVR2TriggerStep(
-                    PSVR2TriggerEffect.Vibration(SCAN_VIBRATION_POSITION, SCAN_PING_TRIGGER_AMPLITUDE, (int)SCAN_PING_HZ),
-                    Frames(SCAN_PING_MS))
-            });
+                return;
+            }
+
+            float peakHz = Mathf.Lerp(HMD_MIN_RUMBLE_HZ, SCOUT_CHARGE_MAX_HZ, closeness);
+            _worker.SetHmdHold((byte)Mathf.RoundToInt(Mathf.Lerp(HMD_MIN_RUMBLE_HZ, peakHz, Mathf.Clamp01(chargeProgress))), SustainFrames);
+        }
+
+        /// <summary>A scout screams: a headset wave that peaks with the scream and fades over its length.</summary>
+        internal static void TriggerScoutScream(Vector3 scoutPosition, float screamSeconds)
+        {
+            if (!IsActive || !_worker.HmdRumbleAvailable)
+            {
+                return;
+            }
+
+            float closeness = ScreamCloseness(scoutPosition, SCOUT_SCREAM_MAX_DISTANCE, out float distance);
+            if (closeness <= 0f)
+            {
+                return;
+            }
+
+            byte peakHz = (byte)Mathf.RoundToInt(Mathf.Lerp(SCOUT_SCREAM_MIN_PEAK_HZ, SCOUT_SCREAM_MAX_PEAK_HZ, closeness));
+            int totalMs = Mathf.RoundToInt(Mathf.Clamp(screamSeconds, 1f, 4f) * 1000f * Mathf.Lerp(0.6f, 1f, closeness));
+            _worker.ClearHmdHold();
+            _worker.StartHmdWave(BuildHmdWave(peakHz, totalMs, SCOUT_SCREAM_WAVE_STEPS));
+            _screamWaveEndTime = Time.unscaledTime + totalMs / 1000f;
+            Log.Info($"PSVR2 HMD scream wave submitted: scout at {distance:F0} m, peak {peakHz}Hz over {totalMs}ms.");
+        }
+
+        /// <summary>
+        /// Another enemy's alert scream: a short, lighter headset wave. Skipped while a scream wave plays and within
+        /// ENEMY_SCREAM_COOLDOWN_SECONDS of the last one, so a room waking up sends one wave rather than a stream.
+        /// </summary>
+        internal static void TriggerEnemyScream(Vector3 enemyPosition)
+        {
+            if (!IsActive || !_worker.HmdRumbleAvailable)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < _screamWaveEndTime || now - _lastEnemyScreamTime < ENEMY_SCREAM_COOLDOWN_SECONDS)
+            {
+                return;
+            }
+
+            float closeness = ScreamCloseness(enemyPosition, ENEMY_SCREAM_MAX_DISTANCE, out float distance);
+            if (closeness <= 0f)
+            {
+                return;
+            }
+
+            _lastEnemyScreamTime = now;
+            byte peakHz = (byte)Mathf.RoundToInt(Mathf.Lerp(ENEMY_SCREAM_MIN_PEAK_HZ, ENEMY_SCREAM_MAX_PEAK_HZ, closeness));
+            int totalMs = Mathf.RoundToInt(Mathf.Lerp(ENEMY_SCREAM_MIN_MS, ENEMY_SCREAM_MAX_MS, closeness));
+            _worker.StartHmdWave(BuildHmdWave(peakHz, totalMs, ENEMY_SCREAM_WAVE_STEPS));
+            _screamWaveEndTime = now + totalMs / 1000f;
+            Log.Info($"PSVR2 HMD scream wave submitted: enemy at {distance:F0} m, peak {peakHz}Hz over {totalMs}ms.");
+        }
+
+        /// <summary>Starts at <paramref name="peakHz"/> and steps down evenly to the motor's lowest frequency.</summary>
+        private static PSVR2HmdStep[] BuildHmdWave(byte peakHz, int totalMs, int stepCount)
+        {
+            var steps = new PSVR2HmdStep[stepCount];
+            int stepFrames = Frames(Math.Max(1, totalMs / stepCount));
+            for (int i = 0; i < stepCount; i++)
+            {
+                float t = stepCount > 1 ? i / (float)(stepCount - 1) : 0f;
+                steps[i] = new PSVR2HmdStep((byte)Mathf.RoundToInt(Mathf.Lerp(peakHz, HMD_MIN_RUMBLE_HZ, t)), stepFrames);
+            }
+
+            return steps;
+        }
+
+        /// <summary>1 within SCREAM_FULL_DISTANCE of the local player, falling to 0 at <paramref name="maxDistance"/>.</summary>
+        private static float ScreamCloseness(Vector3 position, float maxDistance, out float distance)
+        {
+            var player = VRPlayer.PlayerAgent;
+            if (player == null)
+            {
+                distance = float.PositiveInfinity;
+                return 0f;
+            }
+
+            distance = Vector3.Distance(player.Position, position);
+            return 1f - Mathf.InverseLerp(SCREAM_FULL_DISTANCE, maxDistance, distance);
         }
 
         /// <summary>
@@ -1487,9 +1798,12 @@ namespace GTFO_VR.Core.PSVR2
             _worker.SetBaseEffect(EVRControllerType.Both, PSVR2TriggerEffect.Off);
         }
 
+        /// <summary>Ends a weapon or melee charge: resistance, PCM hum or tremor, and the charge milestones.</summary>
         private static void EndWeaponCharge()
         {
             _chargeReadyPlayed = false;
+            _meleeHalfDetentPlayed = false;
+            _meleeFullDetentPlayed = false;
             _worker.ClearHold(PSVR2HoldKind.WeaponCharge);
             _worker.Synth.StopTexture(PSVR2TextureKind.WeaponCharge);
         }

@@ -32,6 +32,7 @@ namespace GTFO_VR.Core.PSVR2
         private const int CONNECT_RETRY_MS = 5000;
         private const int DRIVER_CHECK_MS = 1000;
         private const int PCM_TIMEOUTS_BEFORE_UNAVAILABLE = 2;
+        private const int TICK_STALL_MS = 50;
         private const int STOP_WAIT_MS = 500;
         private const int RELEASE_WAIT_WARNING_MS = 1000;
         private const int ERROR_BACKOFF_MS = 1000;
@@ -75,6 +76,9 @@ namespace GTFO_VR.Core.PSVR2
         private volatile bool _driverActive;
         private volatile bool _pcmAvailable;
         private volatile string _backendName = "none";
+
+        /// <summary>Driver output ticks seen by the PCM thread: the frame clock while controller PCM runs.</summary>
+        private long _pcmTickCount;
 
         internal PSVR2OutputWorker(PSVR2TransportConnector connector = null)
         {
@@ -210,6 +214,43 @@ namespace GTFO_VR.Core.PSVR2
             }
         }
 
+        /// <summary>Headset frequency envelope; replaces a running wave. Damage and elevator pulses still override it.</summary>
+        internal void StartHmdWave(PSVR2HmdStep[] steps)
+        {
+            lock (_sync)
+            {
+                _mixer.StartHmdWave(steps);
+            }
+        }
+
+        /// <summary>Sustained headset frequency that lapses <paramref name="frames"/> frames after the last call.</summary>
+        internal void SetHmdHold(byte hz, int frames)
+        {
+            lock (_sync)
+            {
+                _mixer.SetHmdHold(hz, frames);
+            }
+        }
+
+        internal void ClearHmdHold()
+        {
+            lock (_sync)
+            {
+                _mixer.ClearHmdHold();
+            }
+        }
+
+        internal bool HmdWaveActive
+        {
+            get
+            {
+                lock (_sync)
+                {
+                    return _mixer.HmdWaveActive;
+                }
+            }
+        }
+
         /// <summary>Neutral state: no trigger effects, no headset rumble, no controller PCM.</summary>
         internal void ResetOutputs()
         {
@@ -236,6 +277,8 @@ namespace GTFO_VR.Core.PSVR2
             var sentEffects = new PSVR2TriggerEffect[2];
             int sentHmdHz = -1;
             long processedFrames = 0;
+            long processedTicks = Interlocked.Read(ref _pcmTickCount);
+            long lastTickMs = 0;
             long nextConnectMs = 0;
             long nextDriverCheckMs = 0;
             long ownerWaitStartMs = -1;
@@ -256,8 +299,22 @@ namespace GTFO_VR.Core.PSVR2
                     {
                         long nowMs = clock.ElapsedMilliseconds;
                         long nowFrames = (long)(clock.Elapsed.TotalSeconds / FRAME_SECONDS);
-                        long elapsedFrames = Math.Min(Math.Max(0, nowFrames - processedFrames), MAX_FRAMES_PER_ITERATION);
+                        long nowTicks = Interlocked.Read(ref _pcmTickCount);
+                        if (nowTicks != processedTicks)
+                        {
+                            lastTickMs = nowMs;
+                        }
+
+                        // With controller PCM the driver's output tick is the frame clock, so a step of N frames spans
+                        // exactly N controller packets; stopwatch frames drift against it by a tick now and then, which
+                        // shortened two-frame recoil pushes to one. Without PCM, and once ticks have stopped for
+                        // TICK_STALL_MS (a stalled driver takes two 1 s timeouts to be reported), the stopwatch stands
+                        // in, so a kick or pulse in flight cannot hang on while the stall is being detected.
+                        bool tickClock = _pcmAvailable && nowMs - lastTickMs <= TICK_STALL_MS;
+                        long elapsedFrames = tickClock ? nowTicks - processedTicks : nowFrames - processedFrames;
+                        elapsedFrames = Math.Min(Math.Max(0, elapsedFrames), MAX_FRAMES_PER_ITERATION);
                         processedFrames = nowFrames;
+                        processedTicks = nowTicks;
 
                         PSVR2TriggerEffect leftEffect;
                         PSVR2TriggerEffect rightEffect;
@@ -671,6 +728,7 @@ namespace GTFO_VR.Core.PSVR2
                     {
                         case PSVR2Result.Ok:
                             consecutiveTimeouts = 0;
+                            Interlocked.Increment(ref _pcmTickCount);
                             if (!_pcmAvailable)
                             {
                                 // Drop one-shots queued while the stream was down so nothing plays late.

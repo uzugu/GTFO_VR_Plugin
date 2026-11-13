@@ -26,6 +26,20 @@ namespace GTFO_VR.Core.PSVR2
         internal int Frames { get; }
     }
 
+    /// <summary>One step of a headset rumble wave: a motor frequency in Hz held for whole output frames.</summary>
+    internal readonly struct PSVR2HmdStep
+    {
+        internal PSVR2HmdStep(byte hz, int frames)
+        {
+            Hz = hz;
+            Frames = Math.Max(1, frames);
+        }
+
+        internal byte Hz { get; }
+
+        internal int Frames { get; }
+    }
+
     /// <summary>
     /// Desired adaptive-trigger and headset-rumble state, advanced in whole Sense output frames
     /// (32 PCM samples at 3 kHz). Pure state: no I/O and no threads; PSVR2OutputWorker owns the instance
@@ -38,7 +52,9 @@ namespace GTFO_VR.Core.PSVR2
     ///   number of frames after its last refresh, so a cancelled charge never leaves the trigger stuck.
     /// - Sequence: a timed transient (recoil push, melee decay, reload or damage pulse). When it ends the
     ///   trigger returns to the hold or base effect by itself; starting another sequence replaces it.
-    /// The headset sends a temporary pulse when one is active, otherwise the continuous frequency.
+    /// The headset sends the first active layer of: pulse (damage, elevator events), wave (a stepped
+    /// frequency envelope such as a scout scream), hold (a sustained frequency that lapses after its last
+    /// refresh), continuous frequency (elevator descent). A pulse interrupts a wave without ending it.
     /// </summary>
     internal sealed class PSVR2HapticsMixer
     {
@@ -62,11 +78,24 @@ namespace GTFO_VR.Core.PSVR2
             internal bool Pending;
         }
 
+        private sealed class HmdWave
+        {
+            internal PSVR2HmdStep[] Steps;
+            internal int Index;
+            internal long StepFramesLeft;
+            internal bool Pending;
+        }
+
         private readonly HandState[] _hands = { new HandState(), new HandState() };
         private byte _continuousHmdHz;
+        private byte _hmdHoldHz;
+        private long _hmdHoldFramesLeft;
+        private HmdWave _hmdWave;
         private HmdPulse _hmdPulse;
 
         internal byte ContinuousHmdHz => _continuousHmdHz;
+
+        internal bool HmdWaveActive => _hmdWave != null;
 
         internal void SetBaseEffect(EVRControllerType controller, PSVR2TriggerEffect effect)
         {
@@ -145,9 +174,41 @@ namespace GTFO_VR.Core.PSVR2
             };
         }
 
+        /// <summary>Sets or refreshes a sustained headset frequency; it lapses <paramref name="frames"/> frames after the last call.</summary>
+        internal void SetHmdHold(byte hz, int frames)
+        {
+            _hmdHoldHz = hz;
+            _hmdHoldFramesLeft = Math.Max(1, frames);
+        }
+
+        internal void ClearHmdHold()
+        {
+            _hmdHoldHz = 0;
+            _hmdHoldFramesLeft = 0;
+        }
+
+        /// <summary>Replaces any running headset wave; the first step starts at the next frame.</summary>
+        internal void StartHmdWave(PSVR2HmdStep[] steps)
+        {
+            if (steps == null || steps.Length == 0)
+            {
+                return;
+            }
+
+            _hmdWave = new HmdWave
+            {
+                Steps = steps,
+                Index = 0,
+                StepFramesLeft = steps[0].Frames,
+                Pending = true
+            };
+        }
+
         internal void ClearHmd()
         {
             _continuousHmdHz = 0;
+            ClearHmdHold();
+            _hmdWave = null;
             _hmdPulse = null;
         }
 
@@ -177,6 +238,17 @@ namespace GTFO_VR.Core.PSVR2
 
                 AdvanceSequence(hand, frames);
             }
+
+            if (_hmdHoldFramesLeft > 0)
+            {
+                _hmdHoldFramesLeft -= frames;
+                if (_hmdHoldFramesLeft <= 0)
+                {
+                    ClearHmdHold();
+                }
+            }
+
+            AdvanceHmdWave(frames);
 
             if (_hmdPulse != null)
             {
@@ -213,7 +285,52 @@ namespace GTFO_VR.Core.PSVR2
 
         internal byte GetHmdHz()
         {
-            return _hmdPulse != null ? _hmdPulse.Hz : _continuousHmdHz;
+            if (_hmdPulse != null)
+            {
+                return _hmdPulse.Hz;
+            }
+
+            if (_hmdWave != null)
+            {
+                return _hmdWave.Steps[_hmdWave.Index].Hz;
+            }
+
+            return _hmdHoldFramesLeft > 0 ? _hmdHoldHz : _continuousHmdHz;
+        }
+
+        private void AdvanceHmdWave(long frames)
+        {
+            HmdWave wave = _hmdWave;
+            if (wave == null)
+            {
+                return;
+            }
+
+            if (wave.Pending)
+            {
+                wave.Pending = false;
+                return;
+            }
+
+            long remaining = frames;
+            while (remaining > 0)
+            {
+                if (remaining < wave.StepFramesLeft)
+                {
+                    wave.StepFramesLeft -= remaining;
+                    return;
+                }
+
+                remaining -= wave.StepFramesLeft;
+                wave.Index++;
+                if (wave.Index >= wave.Steps.Length)
+                {
+                    _hmdWave = null;
+                    return;
+                }
+
+                wave.StepFramesLeft = wave.Steps[wave.Index].Frames;
+            }
         }
 
         private static void AdvanceSequence(HandState hand, long frames)

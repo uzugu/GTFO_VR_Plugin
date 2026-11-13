@@ -30,6 +30,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
             BioScannerEvents.OnBioScannerCharging += BioScannerChargingHaptics;
             BioScannerEvents.OnBioScannerWaveStart += BioScannerWaveHaptics;
             BioScannerEvents.OnEnemyDetected += EnemyDetectedHaptics;
+            EnemyScreamEvents.OnScoutScreamCharging += ScoutScreamChargingHaptics;
+            EnemyScreamEvents.OnScoutScream += ScoutScreamHaptics;
+            EnemyScreamEvents.OnEnemyScream += EnemyScreamHaptics;
         }
 
         public static float GetFireHapticStrength(Weapon weapon, float intensityFactor = 1f)
@@ -43,9 +46,10 @@ namespace GTFO_VR.Core.PlayerBehaviours
         {
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
-                bool hitEnemy = dmg > 0.01f;
-                // The PSVR2 thud replaces the SteamVR pulse; without controller PCM the pulse still plays.
-                if (PSVR2HapticsManager.TriggerMeleeImpact(dmg, hitEnemy))
+                // dmg is the hit's share of full charged damage, 0 for a shove. The PSVR2 thud replaces the
+                // SteamVR pulse; without controller PCM the pulse still plays.
+                bool isAttack = dmg > 0.01f;
+                if (PSVR2HapticsManager.TriggerMeleeImpact(dmg, isAttack))
                 {
                     return;
                 }
@@ -69,23 +73,27 @@ namespace GTFO_VR.Core.PlayerBehaviours
 
         private void HammerChargingHaptics(float pressure)
         {
-            // PSVR2: rising trigger resistance plus a PCM charge hum for charge-up weapons.
+            // PSVR2: trigger resistance that builds with the charge, plus a PCM hum (charge-up weapons) or a
+            // low tremor (melee weapons).
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
                 var currentItem = ItemEquippableEvents.currentItem;
 
-                // Only shootable weapons charge this way; hammers keep their profile and the SteamVR pulses.
-                // When the PCM hum plays it replaces the SteamVR charge pulses, which the Toolkit would
-                // otherwise also turn into controller PCM and blur the hum.
-                if (currentItem != null &&
-                    ItemEquippableEvents.IsItemShootableWeapon(currentItem) &&
-                    PSVR2HapticsManager.TriggerWeaponCharging(pressure))
+                // When the PCM hum or tremor plays it replaces the SteamVR charge pulses, which the Toolkit would
+                // otherwise also turn into controller PCM and blur it.
+                if (currentItem != null)
                 {
-                    return;
+                    bool pcmPlayed = ItemEquippableEvents.IsItemShootableWeapon(currentItem)
+                        ? PSVR2HapticsManager.TriggerWeaponCharging(pressure)
+                        : PSVR2HapticsManager.TriggerMeleeCharging(currentItem, pressure);
+                    if (pcmPlayed)
+                    {
+                        return;
+                    }
                 }
             }
 
-            // SteamVR charge pulses: hammers, and charge-up weapons when no PSVR2 controller PCM is available.
+            // SteamVR charge pulses: when no PSVR2 controller PCM is available.
             if (!VRConfig.configUseWeaponHaptics.Value)
             {
                 return;
@@ -250,6 +258,30 @@ namespace GTFO_VR.Core.PlayerBehaviours
             PSVR2HapticsManager.TriggerEnemyDetection();
         }
 
+        private void ScoutScreamChargingHaptics(Vector3 scoutPosition, float progress)
+        {
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.UpdateScoutScreamCharge(scoutPosition, progress);
+            }
+        }
+
+        private void ScoutScreamHaptics(Vector3 scoutPosition, float screamSeconds)
+        {
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.TriggerScoutScream(scoutPosition, screamSeconds);
+            }
+        }
+
+        private void EnemyScreamHaptics(Vector3 enemyPosition)
+        {
+            if (VRConfig.configUsePSVR2Haptics.Value)
+            {
+                PSVR2HapticsManager.TriggerEnemyScream(enemyPosition);
+            }
+        }
+
         private void OnDestroy()
         {
             PlayerReceivedDamageEvents.OnPlayerTakeDamage -= PlayReceiveDamageHaptics;
@@ -262,6 +294,9 @@ namespace GTFO_VR.Core.PlayerBehaviours
             BioScannerEvents.OnBioScannerCharging -= BioScannerChargingHaptics;
             BioScannerEvents.OnBioScannerWaveStart -= BioScannerWaveHaptics;
             BioScannerEvents.OnEnemyDetected -= EnemyDetectedHaptics;
+            EnemyScreamEvents.OnScoutScreamCharging -= ScoutScreamChargingHaptics;
+            EnemyScreamEvents.OnScoutScream -= ScoutScreamHaptics;
+            EnemyScreamEvents.OnEnemyScream -= EnemyScreamHaptics;
 
             PSVR2HapticsManager.Shutdown();
         }

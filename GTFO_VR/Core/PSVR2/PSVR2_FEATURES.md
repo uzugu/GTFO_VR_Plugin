@@ -13,6 +13,8 @@ Headset details: [HEADSET_HAPTICS_IMPLEMENTATION.md](../../../Release_Dependenci
 2. **Time is counted in Sense output frames.** The Toolkit sends one packet per controller every
    32 samples at 3 kHz (about 10.7 ms), carrying that frame's PCM and the current trigger effect.
    Sequences step in whole frames, paced by `psvr2_toolkit_wait_for_pcm`, instead of `Task.Delay`.
+   While controller PCM runs, the frame count is the driver's own tick count, so a step of N frames
+   spans exactly N controller packets; without PCM a stopwatch stands in.
 3. **Resistance on the trigger, texture in PCM.** A trigger runs one Sony effect at a time; sending a
    new one replaces the old. Sustained effects therefore hold one resistance effect on the trigger and
    play their vibration texture as controller PCM. Without PCM, the texture falls back to trigger
@@ -27,7 +29,8 @@ Headset details: [HEADSET_HAPTICS_IMPLEMENTATION.md](../../../Release_Dependenci
 |---|---|
 | `PSVR2HapticsManager.cs` | Game-thread entry point: builds weapon profiles, maps game events to desired output, owns the worker. |
 | `PSVR2OutputWorker.cs` | Command thread and PCM thread: connection, frame clock, change-only sends, result handling, reconnect. |
-| `PSVR2HapticsMixer.cs` | Pure state: per-hand base effect, hold and step sequence; headset continuous frequency and pulse. |
+| `PSVR2HapticsMixer.cs` | Pure state: per-hand base effect, hold and step sequence; headset pulse, wave, hold and continuous frequency. |
+| `Injections/Events/InjectEnemyScreamEvents.cs` | Scout scream states and other enemies' alert screams, raised as `EnemyScreamEvents`. |
 | `PSVR2PcmSynth.cs` | Pure state: controller PCM voices (impulses, elevator rumble, textures, tones), rendered per chunk. |
 | `PSVR2TriggerEffect.cs` | Immutable Sony trigger effect, clamped to documented ranges, serialised to the 56-byte command. |
 | `IPSVR2Transport.cs`, `PSVR2CapiTransport.cs`, `PSVR2IpcTransport.cs`, `IpcClient.cs`, `IpcProtocol.cs` | Toolkit connections: direct CAPI, or legacy IPC (TCP 3364). |
@@ -77,14 +80,32 @@ output for the rest of the game.
 
 Each trigger sends the first active layer:
 
-1. **Sequence:** timed steps (recoil kick, melee decay, reload or damage pulse, scanner fallbacks).
-   Starting a sequence replaces the running one. When it ends, the trigger returns to the hold or base.
-2. **Hold:** a sustained effect refreshed by the game each frame: weapon charge-up, C-Foam pressure,
-   bio-scanner tagging. It ends 150 ms after the last refresh, so a cancelled charge cannot leave the
-   trigger stuck.
+1. **Sequence:** timed steps (recoil kick, melee hit and charge detents, reload or damage pulse, scan
+   wave and blip ticks). Starting a sequence replaces the running one. When it ends, the trigger
+   returns to the hold or base.
+2. **Hold:** a sustained effect refreshed by the game each frame: weapon and melee charge-up, C-Foam
+   pressure, bio-tracker tagging bursts. It ends 150 ms after the last refresh, so a cancelled charge
+   cannot leave the trigger stuck.
 3. **Base:** the equipped item's profile on the main hand; off on the off hand.
 
 Equipping, disabling triggers and switching handedness clear holds and sequences and set new bases.
+
+## Headset: pulse, wave, hold, continuous
+
+The headset motor takes only a frequency (10-25 Hz, 0 = off) and sends the first active layer:
+
+1. **Pulse:** one frequency for a set time (damage, elevator events).
+2. **Wave:** stepped frequencies (screams). A pulse interrupts a wave; the wave keeps its own time and
+   resumes where it would have been.
+3. **Hold:** a frequency refreshed by the game each frame, ending 150 ms after the last refresh (a
+   scout charging its scream).
+4. **Continuous:** the elevator descent rumble.
+
+Scout screams are tracked by `Injections/Events/InjectEnemyScreamEvents.cs`: it follows each scout's
+`ES_ScoutScream.m_state` (Chargeup, Scream, ...) from the host's `Update`, the clients' `SyncUpdate`
+and `CommonUpdate`, and reports each change once. A scout killed while charging never reaches Scream,
+so its tension rumble just lapses. Other enemies' alert screams come from `ES_Scream.Enter` /
+`SyncEnter`.
 
 ## Weapon profiles
 
@@ -119,9 +140,12 @@ the behaviour that was tuned on the hardware.
 |---|---|---|---|
 | Fire | family recoil sequence | kick/snap or sweep; support hand when two-handed | |
 | Charge-up | hold: feedback from the profile's start position, rising to 8 | hum 40 to 180 Hz; 200 Hz pulse at full charge | |
+| Melee charge | rest feedback (1, 2); hold: feedback at 1 rising from 4 to 8 by 70% of the charge; detents at half and full charge (one-frame release, then a 70 Hz bump) | 30-70 Hz tremor with a 7 Hz wobble; thump at full charge | |
+| Melee hit | one-frame release, feedback jolt 6-8, then 45 Hz and 30 Hz ring steps, all scaled by the hit's share of charged damage (about 0.1-0.2 s); shove: light bump | thud 40/115 Hz, 100-190 ms by charge; shove 70/190 Hz | |
 | C-Foam | hold: feedback at 2, strength 4 to 7 with pressure | 25-55 Hz bubbles, 8-15 Hz wobble of ±30% | |
-| Bio scanner | hold: feedback at 1, strength 5 to 7 | 100 to 220 Hz hum; 7-tone wave on a completed tag; 150 Hz ping per detection (at most every 150 ms) | |
-| Melee | 4-5 step decaying vibration | thud: enemy 42/120 Hz, surface 70/190 Hz | |
+| Bio tracker | tagging: vibration bursts at 4-12 Hz (amplitude 5-8, 100-220 Hz in 10 Hz steps) between feedback 3-5, merging into a steady buzz from 60-95% of the tag; 7-step scan wave on a completed tag; 230 Hz tick per new blip, cutting into the wave | 100 to 220 Hz hum (quiet); wave tones; 150 Hz ping per blip (at most every 150 ms) | |
+| Scout scream | | | charge-up: hold rising 10-15 Hz; scream: wave from 15-25 Hz down to 10 Hz over the scream; full within 10 m, none beyond 45 m |
+| Enemy alert scream | | | short wave 12-20 Hz down to 10 Hz, 0.5-0.9 s; within 25 m, at most every 6 s, never over a scout wave |
 | Reload | 120 ms vibration (position 4, amplitude 6, 180 Hz) | SteamVR pulse (the Toolkit turns it into PCM) | |
 | Damage | 160 ms vibration on both triggers | hit on both hands, scaled by damage | 18-25 Hz for 180-450 ms |
 | Elevator | | continuous rumble plus impacts | continuous frequency plus pulses |
