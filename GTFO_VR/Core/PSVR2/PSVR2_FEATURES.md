@@ -55,6 +55,14 @@ Because the command thread wakes right after each PCM tick, a shot's trigger kic
 leave in the same controller packet. A PCM thread that is stuck in a native call when the connection
 closes keeps its own stop flag, and the CAPI module stays loaded until that call has returned.
 
+`Start()` never waits, and `Stop()` waits at most 500 ms for the release (triggers off, headset motor
+stopped, connection closed), so a hung driver call cannot stall the game thread at a level change.
+Each `Start()` runs its own command session with its own stop flag. A session opens a connection only
+after the previous session's thread has finished releasing, because the CAPI keeps one client slot per
+process and the old session's `deinit` would otherwise take it from the new one. An unexpected
+exception inside the loop releases the connection and reconnects after 5 s instead of ending PSVR2
+output for the rest of the game.
+
 ### Toolkit results
 
 | Result | Handling |

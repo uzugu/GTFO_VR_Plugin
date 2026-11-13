@@ -32,8 +32,9 @@ namespace GTFO_VR.Core.PSVR2
         private const int CONNECT_RETRY_MS = 5000;
         private const int DRIVER_CHECK_MS = 1000;
         private const int PCM_TIMEOUTS_BEFORE_UNAVAILABLE = 2;
-        private const int COMMAND_JOIN_MS = 2500;
-        private const int PREVIOUS_SESSION_JOIN_MS = 5000;
+        private const int STOP_WAIT_MS = 500;
+        private const int RELEASE_WAIT_WARNING_MS = 1000;
+        private const int ERROR_BACKOFF_MS = 1000;
         private const int PCM_JOIN_MS = 1500;
         private const int WAIT_WITH_PCM_MS = 30;
         private const int WAIT_WITHOUT_PCM_MS = 10;
@@ -47,16 +48,29 @@ namespace GTFO_VR.Core.PSVR2
             internal Thread Thread;
         }
 
+        /// <summary>One command thread's lifetime. A thread stuck in a native call keeps its own stop flag.</summary>
+        private sealed class CommandSession
+        {
+            internal volatile bool Running = true;
+            internal Thread Thread;
+        }
+
         private readonly object _sync = new object();
+        private readonly object _ownerLock = new object();
         private readonly PSVR2HapticsMixer _mixer = new PSVR2HapticsMixer();
         private readonly PSVR2PcmSynth _synth = new PSVR2PcmSynth();
         private readonly AutoResetEvent _wake = new AutoResetEvent(false);
         private readonly PSVR2TransportConnector _connector;
         private readonly Dictionary<string, long> _lastWarningMs = new Dictionary<string, long>();
 
-        private Thread _commandThread;
+        private volatile CommandSession _session;
+
+        /// <summary>
+        /// The session allowed to open a Toolkit connection; _transport and the PCM thread belong to it.
+        /// Passes to a new session only once this session's thread has exited, i.e. finished releasing.
+        /// </summary>
+        private volatile CommandSession _owner;
         private volatile PcmSession _pcmSession;
-        private volatile bool _running;
         private volatile IPSVR2Transport _transport;
         private volatile bool _driverActive;
         private volatile bool _pcmAvailable;
@@ -67,7 +81,14 @@ namespace GTFO_VR.Core.PSVR2
             _connector = connector ?? ConnectToolkit;
         }
 
-        internal bool IsRunning => _running;
+        internal bool IsRunning
+        {
+            get
+            {
+                CommandSession session = _session;
+                return session != null && session.Running;
+            }
+        }
 
         /// <summary>A transport is open and its driver is active.</summary>
         internal bool IsConnected => _transport != null && _driverActive;
@@ -88,43 +109,46 @@ namespace GTFO_VR.Core.PSVR2
 
         internal PSVR2PcmSynth Synth => _synth;
 
-        internal bool Start()
+        /// <summary>
+        /// Starts output without waiting. When the previous session is still releasing the Toolkit (inside
+        /// a hung driver call), the new session connects on its own thread once that release has finished.
+        /// </summary>
+        internal void Start()
         {
-            if (_running)
-            {
-                return true;
-            }
-
-            Thread previous = _commandThread;
-            if (previous != null && previous.IsAlive && !previous.Join(PREVIOUS_SESSION_JOIN_MS))
-            {
-                Log.Warning("PSVR2 output worker from the previous session is still releasing the Toolkit; PSVR2 haptics stay off for now.");
-                return false;
-            }
-
-            _running = true;
-            _commandThread = new Thread(CommandLoop)
-            {
-                IsBackground = true,
-                Name = "GTFO VR PSVR2 Output"
-            };
-            _commandThread.Start();
-            return true;
-        }
-
-        /// <summary>Stops output: triggers off, headset motor stopped, connection released.</summary>
-        internal void Stop()
-        {
-            if (!_running)
+            CommandSession current = _session;
+            if (current != null && current.Running)
             {
                 return;
             }
 
-            _running = false;
+            var session = new CommandSession();
+            session.Thread = new Thread(() => CommandLoop(session))
+            {
+                IsBackground = true,
+                Name = "GTFO VR PSVR2 Output"
+            };
+            _session = session;
+            session.Thread.Start();
+        }
+
+        /// <summary>
+        /// Stops output: triggers off, headset motor stopped, connection released. The release runs on the
+        /// worker thread; this waits for it at most STOP_WAIT_MS, so a quitting game still leaves the hardware
+        /// neutral but a hung Toolkit call never stalls the game thread for long.
+        /// </summary>
+        internal void Stop()
+        {
+            CommandSession session = _session;
+            if (session == null || !session.Running)
+            {
+                return;
+            }
+
+            session.Running = false;
             _wake.Set();
 
-            Thread thread = _commandThread;
-            if (thread != null && thread != Thread.CurrentThread && !thread.Join(COMMAND_JOIN_MS))
+            Thread thread = session.Thread;
+            if (thread != Thread.CurrentThread && !thread.Join(STOP_WAIT_MS))
             {
                 Log.Warning("PSVR2 output worker is still inside a Toolkit call; it releases the Toolkit when that call returns.");
             }
@@ -205,7 +229,7 @@ namespace GTFO_VR.Core.PSVR2
             return Math.Max(1, (int)Math.Round(milliseconds / (FRAME_SECONDS * 1000d), MidpointRounding.AwayFromZero));
         }
 
-        private void CommandLoop()
+        private void CommandLoop(CommandSession session)
         {
             var clock = Stopwatch.StartNew();
             var completedPulses = new List<string>();
@@ -214,117 +238,154 @@ namespace GTFO_VR.Core.PSVR2
             long processedFrames = 0;
             long nextConnectMs = 0;
             long nextDriverCheckMs = 0;
+            long ownerWaitStartMs = -1;
+            bool reportedOwnerWait = false;
             bool reportedConnectFailure = false;
 
             try
             {
-                while (_running)
+                while (session.Running)
                 {
                     _wake.WaitOne(_pcmAvailable ? WAIT_WITH_PCM_MS : WAIT_WITHOUT_PCM_MS);
-                    if (!_running)
+                    if (!session.Running)
                     {
                         break;
                     }
 
-                    long nowMs = clock.ElapsedMilliseconds;
-                    long nowFrames = (long)(clock.Elapsed.TotalSeconds / FRAME_SECONDS);
-                    long elapsedFrames = Math.Min(Math.Max(0, nowFrames - processedFrames), MAX_FRAMES_PER_ITERATION);
-                    processedFrames = nowFrames;
-
-                    PSVR2TriggerEffect leftEffect;
-                    PSVR2TriggerEffect rightEffect;
-                    byte hmdHz;
-                    byte continuousHz;
-                    completedPulses.Clear();
-                    lock (_sync)
+                    try
                     {
-                        _mixer.Advance(elapsedFrames, completedPulses);
-                        leftEffect = _mixer.GetEffect(EVRControllerType.Left);
-                        rightEffect = _mixer.GetEffect(EVRControllerType.Right);
-                        hmdHz = _mixer.GetHmdHz();
-                        continuousHz = _mixer.ContinuousHmdHz;
-                    }
+                        long nowMs = clock.ElapsedMilliseconds;
+                        long nowFrames = (long)(clock.Elapsed.TotalSeconds / FRAME_SECONDS);
+                        long elapsedFrames = Math.Min(Math.Max(0, nowFrames - processedFrames), MAX_FRAMES_PER_ITERATION);
+                        processedFrames = nowFrames;
 
-                    foreach (string label in completedPulses)
-                    {
-                        Log.Info($"PSVR2 HMD pulse completed: {label}; restored elevator frequency to {continuousHz}Hz.");
-                    }
-
-                    IPSVR2Transport transport = _transport;
-                    if (transport == null)
-                    {
-                        if (nowMs < nextConnectMs)
+                        PSVR2TriggerEffect leftEffect;
+                        PSVR2TriggerEffect rightEffect;
+                        byte hmdHz;
+                        byte continuousHz;
+                        completedPulses.Clear();
+                        lock (_sync)
                         {
-                            continue;
+                            _mixer.Advance(elapsedFrames, completedPulses);
+                            leftEffect = _mixer.GetEffect(EVRControllerType.Left);
+                            rightEffect = _mixer.GetEffect(EVRControllerType.Right);
+                            hmdHz = _mixer.GetHmdHz();
+                            continuousHz = _mixer.ContinuousHmdHz;
                         }
 
-                        nextConnectMs = nowMs + CONNECT_RETRY_MS;
-                        transport = Connect(ref reportedConnectFailure);
+                        foreach (string label in completedPulses)
+                        {
+                            Log.Info($"PSVR2 HMD pulse completed: {label}; restored elevator frequency to {continuousHz}Hz.");
+                        }
+
+                        // A connection still open while another session owns the Toolkit is that session's to release.
+                        IPSVR2Transport transport = ReferenceEquals(_owner, session) ? _transport : null;
                         if (transport == null)
                         {
-                            continue;
-                        }
+                            if (nowMs < nextConnectMs)
+                            {
+                                continue;
+                            }
 
-                        sentEffects[0] = null;
-                        sentEffects[1] = null;
-                        sentHmdHz = -1;
-                        nextDriverCheckMs = nowMs + DRIVER_CHECK_MS;
-                    }
+                            if (!TryClaimToolkit(session))
+                            {
+                                if (ownerWaitStartMs < 0)
+                                {
+                                    ownerWaitStartMs = nowMs;
+                                }
+                                else if (!reportedOwnerWait && nowMs - ownerWaitStartMs >= RELEASE_WAIT_WARNING_MS)
+                                {
+                                    reportedOwnerWait = true;
+                                    Log.Warning("PSVR2 output worker from the previous session is still releasing the Toolkit; connecting once it has finished.");
+                                }
 
-                    if (nowMs >= nextDriverCheckMs)
-                    {
-                        nextDriverCheckMs = nowMs + DRIVER_CHECK_MS;
-                        bool active = transport.IsDriverActive();
-                        if (!active && _driverActive)
-                        {
-                            MarkDriverInactive(transport);
-                        }
-                        else if (active && !_driverActive)
-                        {
-                            _driverActive = true;
+                                continue;
+                            }
+
+                            nextConnectMs = nowMs + CONNECT_RETRY_MS;
+                            transport = Connect(ref reportedConnectFailure);
+                            if (transport == null)
+                            {
+                                continue;
+                            }
+
                             sentEffects[0] = null;
                             sentEffects[1] = null;
                             sentHmdHz = -1;
-                            Log.Info("PSVR2 Toolkit driver is active again; restoring trigger and headset state.");
-                        }
-                    }
-
-                    if (!_driverActive)
-                    {
-                        if (!transport.CanResumeAfterDriverInactive)
-                        {
-                            CloseTransport(transport);
-                            nextConnectMs = nowMs + CONNECT_RETRY_MS;
+                            nextDriverCheckMs = nowMs + DRIVER_CHECK_MS;
                         }
 
-                        continue;
-                    }
-
-                    if (!SendTrigger(transport, EVRControllerType.Left, leftEffect, sentEffects, 0) ||
-                        !SendTrigger(transport, EVRControllerType.Right, rightEffect, sentEffects, 1))
-                    {
-                        if (_transport == null)
+                        if (nowMs >= nextDriverCheckMs)
                         {
-                            nextConnectMs = nowMs + CONNECT_RETRY_MS;
-                        }
-
-                        continue;
-                    }
-
-                    if (transport.SupportsHmdRumble)
-                    {
-                        byte clampedHz = Math.Min(hmdHz, MAX_HMD_RUMBLE_HZ);
-                        if (clampedHz != sentHmdHz)
-                        {
-                            PSVR2Result result = transport.SetHmdRumble(clampedHz);
-                            if (Accept(transport, result, $"headset rumble {clampedHz}Hz"))
+                            nextDriverCheckMs = nowMs + DRIVER_CHECK_MS;
+                            bool active = transport.IsDriverActive();
+                            if (!active && _driverActive)
                             {
-                                sentHmdHz = clampedHz;
+                                MarkDriverInactive(transport);
                             }
-                            else if (_transport == null)
+                            else if (active && !_driverActive)
+                            {
+                                _driverActive = true;
+                                sentEffects[0] = null;
+                                sentEffects[1] = null;
+                                sentHmdHz = -1;
+                                Log.Info("PSVR2 Toolkit driver is active again; restoring trigger and headset state.");
+                            }
+                        }
+
+                        if (!_driverActive)
+                        {
+                            if (!transport.CanResumeAfterDriverInactive)
+                            {
+                                CloseTransport(transport);
+                                nextConnectMs = nowMs + CONNECT_RETRY_MS;
+                            }
+
+                            continue;
+                        }
+
+                        if (!SendTrigger(transport, EVRControllerType.Left, leftEffect, sentEffects, 0) ||
+                            !SendTrigger(transport, EVRControllerType.Right, rightEffect, sentEffects, 1))
+                        {
+                            if (_transport == null)
                             {
                                 nextConnectMs = nowMs + CONNECT_RETRY_MS;
                             }
+
+                            continue;
+                        }
+
+                        if (transport.SupportsHmdRumble)
+                        {
+                            byte clampedHz = Math.Min(hmdHz, MAX_HMD_RUMBLE_HZ);
+                            if (clampedHz != sentHmdHz)
+                            {
+                                PSVR2Result result = transport.SetHmdRumble(clampedHz);
+                                if (Accept(transport, result, $"headset rumble {clampedHz}Hz"))
+                                {
+                                    sentHmdHz = clampedHz;
+                                }
+                                else if (_transport == null)
+                                {
+                                    nextConnectMs = nowMs + CONNECT_RETRY_MS;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // A bug or a misbehaving transport must not end PSVR2 output for the rest of the game:
+                        // leave the hardware neutral, drop the connection and reconnect after the usual delay.
+                        if (ClaimLogSlot("worker-error"))
+                        {
+                            Log.Error($"PSVR2 output worker error; releasing the Toolkit and reconnecting: {ex}");
+                        }
+
+                        ReleaseTransport(session);
+                        nextConnectMs = clock.ElapsedMilliseconds + CONNECT_RETRY_MS;
+                        if (session.Running)
+                        {
+                            _wake.WaitOne(ERROR_BACKOFF_MS);
                         }
                     }
                 }
@@ -335,8 +396,28 @@ namespace GTFO_VR.Core.PSVR2
             }
             finally
             {
-                ReleaseTransport();
-                _running = false;
+                ReleaseTransport(session);
+                session.Running = false;
+            }
+        }
+
+        /// <summary>
+        /// Lets a session open a Toolkit connection once the previous owner's thread has exited (finished
+        /// releasing). The CAPI keeps one client slot per process, so an old session's deinit would
+        /// otherwise take the slot away from the new one.
+        /// </summary>
+        private bool TryClaimToolkit(CommandSession session)
+        {
+            lock (_ownerLock)
+            {
+                CommandSession owner = _owner;
+                if (owner != null && !ReferenceEquals(owner, session) && owner.Thread.IsAlive)
+                {
+                    return false;
+                }
+
+                _owner = session;
+                return true;
             }
         }
 
@@ -491,11 +572,11 @@ namespace GTFO_VR.Core.PSVR2
             _backendName = "none";
         }
 
-        /// <summary>Leaves triggers off and the headset motor stopped, then releases the connection.</summary>
-        private void ReleaseTransport()
+        /// <summary>Leaves triggers off and the headset motor stopped, then releases the session's connection.</summary>
+        private void ReleaseTransport(CommandSession session)
         {
             IPSVR2Transport transport = _transport;
-            if (transport == null)
+            if (transport == null || !ReferenceEquals(_owner, session))
             {
                 return;
             }
@@ -506,6 +587,16 @@ namespace GTFO_VR.Core.PSVR2
                 {
                     transport.SetTriggerEffect(EVRControllerType.Left, PSVR2TriggerEffect.Off);
                     transport.SetTriggerEffect(EVRControllerType.Right, PSVR2TriggerEffect.Off);
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug($"PSVR2 Toolkit shutdown warning: {ex.Message}");
+                }
+
+                // Guarded on its own: headset rumble is not tied to a client slot, so a failed trigger call
+                // must not leave the motor running.
+                try
+                {
                     if (transport.SupportsHmdRumble)
                     {
                         transport.SetHmdRumble(0);
@@ -651,18 +742,26 @@ namespace GTFO_VR.Core.PSVR2
 
         private void WarnLimited(string key, string message)
         {
+            if (ClaimLogSlot(key))
+            {
+                Log.Warning(message);
+            }
+        }
+
+        /// <summary>True at most once per WARNING_INTERVAL_MS for each key.</summary>
+        private bool ClaimLogSlot(string key)
+        {
             long now = Environment.TickCount64;
             lock (_lastWarningMs)
             {
                 if (_lastWarningMs.TryGetValue(key, out long last) && now - last < WARNING_INTERVAL_MS)
                 {
-                    return;
+                    return false;
                 }
 
                 _lastWarningMs[key] = now;
+                return true;
             }
-
-            Log.Warning(message);
         }
     }
 }

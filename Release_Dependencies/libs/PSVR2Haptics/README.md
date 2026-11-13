@@ -109,5 +109,7 @@ Check `BepInEx/LogOutput.log`:
 | `PSVR2 controller PCM stream active` | Controller haptics are running. |
 | `PSVR2 controller PCM stream is not ticking` | Turn `useEnhancedHaptics` back on, or restart SteamVR. SteamVR pulses are used meanwhile. |
 | `PSVR2 Toolkit driver is not active` | SteamVR closed or restarting; output resumes when it is back. |
+| `... previous session is still releasing the Toolkit` | A Toolkit call from before the level change has not returned yet (each gives up after 5 s); PSVR2 haptics connect once it has. |
+| `PSVR2 output worker error; releasing the Toolkit and reconnecting` | An unexpected error, with the exception on the following lines; output resumes after 5 s. Worth reporting. |
 | `PSVR2 HMD damage rumble skipped: backend ...` | Headset rumble needs the direct CAPI and a jailbroken headset. |
 | `PSVR2 weapon equipped: ...` | The profile in use: trigger mode, wall (`Pull=start-end@strength`), kick (`RecoilPush`), and recoil waveform (`PCM`). |

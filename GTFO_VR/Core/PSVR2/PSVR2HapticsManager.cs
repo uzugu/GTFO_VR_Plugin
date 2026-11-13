@@ -241,11 +241,8 @@ namespace GTFO_VR.Core.PSVR2
             if (VRConfig.configUsePSVR2Haptics.Value)
             {
                 Log.Info("PSVR2 haptics enabled. Attempting to connect to PSVR2 Toolkit...");
-                if (_worker.Start())
-                {
-                    ApplyCurrentWeaponProfile();
-                }
-
+                _worker.Start();
+                ApplyCurrentWeaponProfile();
                 return;
             }
 
