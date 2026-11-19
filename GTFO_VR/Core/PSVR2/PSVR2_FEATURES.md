@@ -102,10 +102,17 @@ The headset motor takes only a frequency (10-25 Hz, 0 = off) and sends the first
 4. **Continuous:** the elevator descent rumble.
 
 Scout screams are tracked by `Injections/Events/InjectEnemyScreamEvents.cs`: it follows each scout's
-`ES_ScoutScream.m_state` (Chargeup, Scream, ...) from the host's `Update`, the clients' `SyncUpdate`
-and `CommonUpdate`, and reports each change once. A scout killed while charging never reaches Scream,
-so its tension rumble just lapses. Other enemies' alert screams come from `ES_Scream.Enter` /
-`SyncEnter`.
+`ES_ScoutScream.m_state` (Chargeup, Scream, ...) from `CommonUpdate`, which both the host's `Update`
+and the clients' `SyncUpdate` call, and reports each change once. A scout killed while charging never
+reaches Scream, so its tension rumble just lapses. Other enemies' alert screams come from
+`ES_Scream.CommonUpdate`: the first update after a gap of a second is a new scream.
+
+Never Harmony-patch an empty or trivial IL2CPP method. IL2CPP merges methods with identical compiled
+code into one native function, and a patch then fires for all of them, with objects of other types.
+`ES_Scream.SyncEnter` is one (CallerCount 10136 in the interop assembly): patching it crashed every VR
+launch when an unrelated GameObject was created. Read the method's `CallerCount` attribute in
+`BepInEx/interop` first; both `CommonUpdate` methods have 2, their own two callers. The trackers also
+check each object's IL2CPP class before reading its fields.
 
 ## Weapon profiles
 
